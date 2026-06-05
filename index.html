@@ -135,6 +135,189 @@ const deleteOrderFromFS=async(id)=>{
   await fs.deleteDoc(fs.doc("orders",id));
 };
 
+const saveExpenseToFS=async(row)=>{
+  const fs=getFS();
+  await fs.setDoc(fs.doc("expenses",row.id),row);
+};
+const deleteExpenseFromFS=async(id)=>{
+  const fs=getFS();
+  await fs.deleteDoc(fs.doc("expenses",id));
+};
+
+// ─── EXPENSE TRACKER ─────────────────────────────────────────────────────────
+function ExpenseTracker({canEdit}){
+  const[rows,setRows]=React.useState([]);
+  const[loaded,setLoaded]=React.useState(false);
+
+  // Live-sync from Firestore
+  React.useEffect(()=>{
+    if(!window.__firebaseReady)return;
+    const fs=getFS();
+    const unsub=fs.onSnapshot(fs.collection("expenses"),(snap)=>{
+      const docs=snap.docs.map(d=>d.data());
+      docs.sort((a,b)=>(a.sortKey||a.id)<(b.sortKey||b.id)?-1:1);
+      setRows(docs);setLoaded(true);
+    });
+    return()=>unsub();
+  },[]);
+
+  const addRow=async()=>{
+    const id=uid();
+    const row={id,sortKey:Date.now().toString(),date:"",purpose:"",costing:"",total:"",inHandBefore:"",inHandAfter:"",isMonthEnd:false};
+    await saveExpenseToFS(row);
+  };
+
+  const updateRow=async(id,field,value)=>{
+    setRows(prev=>prev.map(r=>r.id===id?{...r,[field]:value}:r));
+    const row=rows.find(r=>r.id===id);
+    if(row)await saveExpenseToFS({...row,[field]:value});
+  };
+
+  const deleteRow=async(id)=>{
+    setRows(prev=>prev.filter(r=>r.id!==id));
+    await deleteExpenseFromFS(id);
+  };
+
+  const toggleMonthEnd=async(id)=>{
+    const row=rows.find(r=>r.id===id);
+    if(row)await saveExpenseToFS({...row,isMonthEnd:!row.isMonthEnd});
+  };
+
+  // Styles matching the spreadsheet color theme
+  const headerCell={
+    padding:"9px 10px",fontWeight:"bold",fontSize:12,letterSpacing:0.5,
+    textAlign:"center",border:"1px solid #1a1a1a",whiteSpace:"nowrap"
+  };
+  const cellStyle=(bg,color,align="left")=>({
+    padding:"7px 8px",fontSize:12,background:bg,color,border:"1px solid #1a1a1a",
+    textAlign:align,verticalAlign:"middle"
+  });
+  const editInput=(bg,color)=>({
+    background:bg,color,border:"none",outline:"none",width:"100%",
+    fontSize:12,fontFamily:"inherit",padding:"2px 4px",
+    fontWeight:"inherit",textAlign:"inherit"
+  });
+
+  const isStaff=!canEdit;
+
+  return(
+    <div style={{background:"#0d0d0d",border:"1px solid #1e1e1e",borderRadius:10,padding:"16px",marginBottom:20}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div style={{fontWeight:"bold",fontSize:15,color:"#fff",letterSpacing:0.5}}>
+          💸 Expense Tracker
+        </div>
+        {canEdit&&(
+          <button onClick={addRow} style={{...bS("#cc0000","#fff",12),padding:"6px 14px"}}>+ Add Row</button>
+        )}
+      </div>
+      {!loaded&&<div style={{color:"#555",fontSize:12,textAlign:"center",padding:20}}>Loading expenses…</div>}
+      {loaded&&(
+        <div style={{overflowX:"auto"}}>
+          <table style={{borderCollapse:"collapse",minWidth:820,width:"100%"}}>
+            <thead>
+              <tr>
+                <th style={{...headerCell,background:"#cc0000",color:"#fff",width:90}}>Date</th>
+                <th style={{...headerCell,background:"#cc0000",color:"#fff",minWidth:180}}>Purpose</th>
+                <th style={{...headerCell,background:"#cc0000",color:"#fff",minWidth:140}}>Costing</th>
+                <th style={{...headerCell,background:"#00bcd4",color:"#000",width:80}}>Total</th>
+                <th style={{...headerCell,background:"#3b7dd8",color:"#fff",minWidth:160}}>In Hand Cash (Before)</th>
+                <th style={{...headerCell,background:"#6ec6f5",color:"#000",minWidth:160}}>In Hand Cash (After)</th>
+                {canEdit&&<th style={{...headerCell,background:"#1a1a1a",color:"#555",width:60}}>⚙</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length===0&&(
+                <tr><td colSpan={canEdit?7:6} style={{textAlign:"center",color:"#444",padding:20,fontSize:13}}>No expenses yet. {canEdit?"Click \"+ Add Row\" to start.":""}</td></tr>
+              )}
+              {rows.map(r=>{
+                if(r.isMonthEnd){
+                  return(
+                    <tr key={r.id}>
+                      <td colSpan={canEdit?6:6} style={{background:"#cc0000",color:"#fff",fontWeight:"bold",fontSize:12,textAlign:"center",padding:"7px 10px",letterSpacing:1,border:"1px solid #1a1a1a"}}>
+                        Month Closed
+                        {canEdit&&<button onClick={()=>toggleMonthEnd(r.id)} title="Convert to normal row" style={{marginLeft:10,background:"rgba(0,0,0,0.3)",border:"none",color:"#ffaaaa",cursor:"pointer",fontSize:10,borderRadius:3,padding:"1px 6px"}}>↩ undo</button>}
+                      </td>
+                      {canEdit&&<td style={{...cellStyle("#1a1a1a","#555"),textAlign:"center"}}>
+                        <button onClick={()=>deleteRow(r.id)} style={{background:"none",border:"none",color:"#550000",cursor:"pointer",fontSize:14}} title="Delete">✕</button>
+                      </td>}
+                    </tr>
+                  );
+                }
+                // Compute total from costing expression if numeric
+                const computedTotal=(()=>{
+                  if(r.total&&r.total.trim())return null; // user overrode
+                  try{
+                    const expr=r.costing.replace(/[^0-9+\-*/.()\s]/g,"");
+                    const v=expr?Function("return "+expr)():0;
+                    return isNaN(v)?null:v;
+                  }catch{return null;}
+                })();
+                const displayTotal=r.total||(computedTotal!=null?computedTotal.toString():"");
+                const dateBg="#ffff80"; // yellow
+                const purpBg="#ffff80";
+                const costBg="#ffff80";
+                const totBg="#00bcd4";
+                const beforeBg="#3b7dd8";
+                const afterBg="#6ec6f5";
+                return(
+                  <tr key={r.id}>
+                    <td style={cellStyle(dateBg,"#111")}>
+                      {canEdit
+                        ?<input value={r.date} onChange={e=>updateRow(r.id,"date",e.target.value)}
+                            placeholder="D/M/YYYY" style={{...editInput(dateBg,"#111"),textAlign:"center"}}/>
+                        :<span style={{fontWeight:"bold"}}>{r.date||"—"}</span>}
+                    </td>
+                    <td style={cellStyle(purpBg,"#111")}>
+                      {canEdit
+                        ?<input value={r.purpose} onChange={e=>updateRow(r.id,"purpose",e.target.value)}
+                            placeholder="e.g. Print + Anti cutter" style={editInput(purpBg,"#111")}/>
+                        :<span style={{fontWeight:"bold"}}>{r.purpose||"—"}</span>}
+                    </td>
+                    <td style={cellStyle(costBg,"#111")}>
+                      {canEdit
+                        ?<input value={r.costing} onChange={e=>updateRow(r.id,"costing",e.target.value)}
+                            placeholder="e.g. 1120+70" style={editInput(costBg,"#111")}/>
+                        :<span>{r.costing||"—"}</span>}
+                    </td>
+                    <td style={{...cellStyle(totBg,"#000"),"fontWeight":"bold",textAlign:"center"}}>
+                      {canEdit
+                        ?<input value={r.total} onChange={e=>updateRow(r.id,"total",e.target.value)}
+                            placeholder={computedTotal!=null?computedTotal.toString():""}
+                            style={{...editInput(totBg,"#000"),textAlign:"center",fontWeight:"bold"}}/>
+                        :<span style={{fontWeight:"bold"}}>{displayTotal||"—"}</span>}
+                    </td>
+                    <td style={cellStyle(beforeBg,"#fff")}>
+                      {canEdit
+                        ?<input value={r.inHandBefore} onChange={e=>updateRow(r.id,"inHandBefore",e.target.value)}
+                            placeholder="e.g. 1900 Eric + 220 Bkash" style={editInput(beforeBg,"#fff")}/>
+                        :<span>{r.inHandBefore||"—"}</span>}
+                    </td>
+                    <td style={cellStyle(afterBg,"#000")}>
+                      {canEdit
+                        ?<input value={r.inHandAfter} onChange={e=>updateRow(r.id,"inHandAfter",e.target.value)}
+                            placeholder="e.g. 1500 + 220 Bkash" style={editInput(afterBg,"#000")}/>
+                        :<span>{r.inHandAfter||"—"}</span>}
+                    </td>
+                    {canEdit&&(
+                      <td style={{...cellStyle("#1a1a1a","#555"),textAlign:"center"}}>
+                        <div style={{display:"flex",gap:4,justifyContent:"center"}}>
+                          <button onClick={()=>toggleMonthEnd(r.id)} title="Mark as Month End" style={{background:"none",border:"none",color:"#cc0000",cursor:"pointer",fontSize:13}}>⚑</button>
+                          <button onClick={()=>deleteRow(r.id)} title="Delete row" style={{background:"none",border:"none",color:"#550000",cursor:"pointer",fontSize:14}}>✕</button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {canEdit&&<div style={{fontSize:11,color:"#444",marginTop:8}}>Tip: ⚑ marks a "Month Closed" separator. Costing auto-computes Total (e.g. "1120+70" → 1190).</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── OWNER LOGIN ──────────────────────────────────────────────────────────────
 function RetroLoginScreen({onLogin}){
   const[pin,setPin]=useState("");
@@ -196,11 +379,87 @@ function RetroLoginScreen({onLogin}){
   );
 }
 
+// ─── STAFF P&L VIEW (read-only, no invoice print) ────────────────────────────
+function StaffPnlView({data,from,to,onFromChange,onToChange}){
+  const setPreset=(preset)=>{
+    const t=todayStr(),[y,m]=t.split("-");
+    if(preset==="thisMonth"){onFromChange(`${y}-${m}-01`);onToChange(t);}
+    else if(preset==="lastMonth"){
+      const d=new Date(t);d.setDate(1);d.setMonth(d.getMonth()-1);
+      const ly=d.getFullYear(),lm=String(d.getMonth()+1).padStart(2,"0"),lastDay=new Date(ly,d.getMonth()+1,0).getDate();
+      onFromChange(`${ly}-${lm}-01`);onToChange(`${ly}-${lm}-${lastDay}`);
+    }else if(preset==="thisYear"){onFromChange(`${y}-01-01`);onToChange(t);}
+    else if(preset==="allTime"){onFromChange("2000-01-01");onToChange("2099-12-31");}
+  };
+  return(
+    <div>
+      <div style={{background:"#111",border:"1px solid #1e1e1e",borderRadius:10,padding:"14px 16px",marginBottom:18}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:10}}>
+          <label style={{fontWeight:"bold",color:"#aaa",fontSize:13}}>From:</label>
+          <input type="date" value={from} onChange={e=>onFromChange(e.target.value)} style={iS({width:160})}/>
+          <label style={{fontWeight:"bold",color:"#aaa",fontSize:13}}>To:</label>
+          <input type="date" value={to} onChange={e=>onToChange(e.target.value)} style={iS({width:160})}/>
+          <span style={{color:"#444",fontSize:12}}>Delivered orders only</span>
+        </div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {[["thisMonth","This Month"],["lastMonth","Last Month"],["thisYear","This Year"],["allTime","All Time"]].map(([k,l])=>(
+            <button key={k} onClick={()=>setPreset(k)} style={bS("#1a1a1a","#888",11,"#333")}>{l}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:22}}>
+        <SCard label="Revenue"     value={tk(data.revenue)}   color="#4488ff"/>
+        <SCard label="Total Cost"  value={tk(data.totalCost)} color="#ff6666"/>
+        <SCard label="Profit"      value={tk(data.profit)}    color={data.profit>=0?"#44cc44":"#cc4444"}/>
+        <SCard label="Delivery"    value={tk(data.delivery)}  color="#aaa"/>
+        <SCard label="Grand Total" value={tk(data.total)}     color="#cc0000"/>
+      </div>
+      {data.orders.length===0
+        ?<div style={{textAlign:"center",color:"#333",marginTop:40}}>No delivered orders for this period.</div>
+        :data.orders.slice().sort((a,b)=>{
+            const ai=parseInt((a.invoiceNum||"").replace(/\D/g,""))||0;
+            const bi=parseInt((b.invoiceNum||"").replace(/\D/g,""))||0;
+            return bi-ai;
+          }).map(o=>{
+          const rev=orderRevenue(o.products),dc=parseFloat(o.deliveryCharge)||0,grand=o.deliveryPaid?rev:rev+dc;
+          return(
+            <div key={o.id} style={{background:"#111",border:"1px solid #1e1e1e",borderRadius:10,marginBottom:12,overflow:"hidden"}}>
+              <div style={{background:"#1a1a1a",padding:"8px 14px",display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:6,alignItems:"center"}}>
+                <span style={{fontWeight:"bold",color:"#fff"}}>#{o.seq} {o.clientName}</span>
+                <div style={{display:"flex",gap:10,alignItems:"center",fontSize:12,flexWrap:"wrap"}}>
+                  <span style={{color:"#666"}}>{o.paymentMethod}</span>
+                  {dc>0&&<span style={{color:o.deliveryPaid?"#44cc44":"#cc4444"}}>🚚 {tk(dc)} {o.deliveryPaid?"Paid":"Unpaid"}</span>}
+                  <span style={{color:"#cc0000",fontWeight:"bold"}}>Total: {tk(grand)}</span>
+                </div>
+              </div>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                <thead><tr style={{background:"#0d0d0d"}}>{["Item","Qty","Rate","Amount"].map(h=><th key={h} style={{padding:"6px 12px",textAlign:h==="Item"?"left":"right",color:"#555"}}>{h}</th>)}</tr></thead>
+                <tbody>{o.products.map((p,i)=>(
+                  <tr key={p.id} style={{background:i%2===0?"#111":"#0d0d0d",borderBottom:"1px solid #1a1a1a"}}>
+                    <td style={{padding:"6px 12px",color:"#fff",fontWeight:"bold"}}>{p.name||"—"}</td>
+                    <td style={{padding:"6px 12px",color:"#666",textAlign:"right"}}>{p.qty||"—"}</td>
+                    <td style={{padding:"6px 12px",color:"#666",textAlign:"right"}}>{p.unitPrice?tk(parseFloat(p.unitPrice)):"—"}</td>
+                    <td style={{padding:"6px 12px",color:"#fff",textAlign:"right"}}>{tk(productTotal(p))}</td>
+                  </tr>
+                ))}</tbody>
+                <tfoot>
+                  {dc>0&&!o.deliveryPaid&&<tr style={{background:"#0d0d0d"}}><td colSpan={3} style={{padding:"6px 12px",color:"#555"}}>Delivery</td><td style={{padding:"6px 12px",color:"#888",textAlign:"right"}}>{tk(dc)}</td></tr>}
+                  <tr style={{background:"#cc0000"}}><td colSpan={3} style={{padding:"7px 12px",color:"#fff",fontWeight:"bold"}}>Total</td><td style={{padding:"7px 12px",color:"#fff",fontWeight:"bold",textAlign:"right"}}>{tk(grand)}</td></tr>
+                </tfoot>
+              </table>
+            </div>
+          );
+        })}
+    </div>
+  );
+}
+
 // ─── STAFF DASHBOARD ─────────────────────────────────────────────────────────
-function StaffDashboard({orders,onUpdateDeliveryPaid,onLock}){
+function StaffDashboard({orders,onUpdateDeliveryPaid,onLock,pnlData,pnlFrom,pnlTo,onPnlFromChange,onPnlToChange}){
   const[filter,setFilter]=useState("All");
   const[search,setSearch]=useState("");
   const[expandedId,setExpandedId]=useState(null);
+  const[staffTab,setStaffTab]=useState("orders"); // "orders" | "expenses" | "pnl"
   const today=todayStr();
 
   const printToday=orders.filter(o=>o.printDate===today&&o.status==="Confirmed");
@@ -228,7 +487,7 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock}){
     .slice(0,3);
 
   return(
-    <div style={{minHeight:"100vh",background:"#050508",fontFamily:"'Courier New',Courier,monospace",color:"#c8d8e8"}}>
+    <div style={{minHeight:"100vh",background:"#050508",fontFamily:"'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,sans-serif",color:"#c8d8e8"}}>
       {/* Scanline overlay */}
       <div style={{position:"fixed",inset:0,pointerEvents:"none",background:"repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,200,255,0.015) 3px,rgba(0,200,255,0.015) 4px)",zIndex:9998}}/>
 
@@ -241,10 +500,15 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock}){
             <div style={{fontSize:10,color:"#2a5a7a",letterSpacing:1}}>OPERATIONS TERMINAL</div>
           </div>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
           <div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(0,200,100,0.08)",border:"1px solid #003320",borderRadius:20,padding:"4px 12px"}}>
             <div style={{width:6,height:6,borderRadius:"50%",background:"#44dd66",boxShadow:"0 0 6px #44dd66"}} className="pulse-dot"/>
             <span style={{fontSize:11,color:"#44dd66",letterSpacing:1}}>LIVE</span>
+          </div>
+          <div style={{display:"flex",gap:4}}>
+            <button onClick={()=>setStaffTab("orders")} style={{background:staffTab==="orders"?"#0a3050":"rgba(0,20,40,0.6)",color:staffTab==="orders"?"#55aaff":"#3a6a8a",border:`1px solid ${staffTab==="orders"?"#0a5080":"#0a2a40"}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontWeight:"bold"}}>📦 Orders</button>
+            <button onClick={()=>setStaffTab("expenses")} style={{background:staffTab==="expenses"?"#301000":"rgba(0,20,40,0.6)",color:staffTab==="expenses"?"#ffaa44":"#3a6a8a",border:`1px solid ${staffTab==="expenses"?"#804020":"#0a2a40"}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontWeight:"bold"}}>💸 Expenses</button>
+            <button onClick={()=>setStaffTab("pnl")} style={{background:staffTab==="pnl"?"#1a0a2a":"rgba(0,20,40,0.6)",color:staffTab==="pnl"?"#cc88ff":"#3a6a8a",border:`1px solid ${staffTab==="pnl"?"#550088":"#0a2a40"}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontWeight:"bold"}}>📊 P&L</button>
           </div>
           <div style={{background:"rgba(0,80,160,0.2)",border:"1px solid #003366",borderRadius:20,padding:"4px 14px",fontSize:11,color:"#5599cc",letterSpacing:1}}>{new Date().toLocaleDateString("en-BD",{weekday:"short",day:"numeric",month:"short"})}</div>
           <button onClick={onLock} style={{background:"rgba(200,0,0,0.1)",color:"#cc4444",border:"1px solid #330000",borderRadius:6,padding:"5px 14px",cursor:"pointer",fontSize:11,fontWeight:"bold",letterSpacing:1}}>LOCK</button>
@@ -253,6 +517,7 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock}){
 
       <div style={{padding:"18px 16px",maxWidth:1000,margin:"0 auto"}}>
 
+        {staffTab==="orders"&&(<>
         {/* ALERTS */}
         {printToday.length>0&&(
           <div style={{background:"linear-gradient(90deg,#1a0800,#220e00)",border:"1px solid #ff6600",borderRadius:10,padding:"12px 18px",marginBottom:14,display:"flex",alignItems:"center",gap:12,boxShadow:"0 0 20px rgba(255,100,0,0.15)"}}>
@@ -331,6 +596,20 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock}){
             onToggle={()=>setExpandedId(expandedId===o.id?null:o.id)}
             onToggleDelivery={()=>onUpdateDeliveryPaid(o.id,!o.deliveryPaid)}/>
         ))}
+        </>)}
+
+        {staffTab==="expenses"&&(
+          <ExpenseTracker canEdit={true}/>
+        )}
+
+        {staffTab==="pnl"&&(
+          <div>
+            <div style={{background:"rgba(80,0,120,0.08)",border:"1px solid #330055",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:"#aa88cc"}}>
+              📊 View-only: P&L data is read-only for staff. Contact the owner to update order statuses.
+            </div>
+            <StaffPnlView data={pnlData} from={pnlFrom} to={pnlTo} onFromChange={onPnlFromChange} onToChange={onPnlToChange}/>
+          </div>
+        )}
       </div>
 
       {/* Footer */}
@@ -620,6 +899,11 @@ function App(){
         orders={orders}
         onUpdateDeliveryPaid={(id,paid)=>updateOrder(id,{deliveryPaid:paid})}
         onLock={()=>setUser(null)}
+        pnlData={pnlData}
+        pnlFrom={pnlFrom}
+        pnlTo={pnlTo}
+        onPnlFromChange={setPnlFrom}
+        onPnlToChange={setPnlTo}
       />
     );
   }
@@ -640,8 +924,9 @@ function App(){
         <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
           <div style={{width:8,height:8,borderRadius:"50%",background:"#44cc44",boxShadow:"0 0 6px #44cc44"}}/>
           <span style={{fontSize:11,color:"#44cc44"}}>Firebase Live</span>
-          <NavBtn label="📦 Orders" active={view==="orders"} onClick={()=>setView("orders")}/>
-          <NavBtn label="📊 P&L"    active={view==="pnl"}    onClick={()=>setView("pnl")}/>
+          <NavBtn label="📦 Orders"   active={view==="orders"}   onClick={()=>setView("orders")}/>
+          <NavBtn label="💸 Expenses" active={view==="expenses"} onClick={()=>setView("expenses")}/>
+          <NavBtn label="📊 P&L"      active={view==="pnl"}      onClick={()=>setView("pnl")}/>
           <span style={{fontSize:12,background:"#1a1a1a",border:"1px solid #cc0000",padding:"4px 10px",borderRadius:20,color:"#cc0000"}}>{user.label} ✓</span>
           <button onClick={()=>setUser(null)} style={bS("#1a1a1a","#aaa",11,"#444")}>Lock</button>
         </div>
@@ -678,6 +963,7 @@ function App(){
             ))}
           </>
         )}
+        {view==="expenses"&&<ExpenseTracker canEdit={true}/>}
         {view==="pnl"&&<PnlView data={pnlData} from={pnlFrom} to={pnlTo} onFromChange={setPnlFrom} onToChange={setPnlTo} onPrintOrder={setPrintOrder}/>}
       </div>
 
