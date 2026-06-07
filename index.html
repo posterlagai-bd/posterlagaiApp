@@ -121,7 +121,7 @@ const makeOrder=()=>({
   orderDate:todayStr(),deliveryDate:"",printDate:"",printDaysBefore:"",
   status:"Talking",products:[newProduct()],notes:"",
   deliveryCharge:"",actualDC:"",deliveryPaid:false,paymentMethod:"COD",
-  history:[`${todayStr()}: Order created`],expanded:false,
+  expanded:false,
   invoiceNum:`PL${String(nextSeq-1).padStart(5,"0")}`,
 });
 
@@ -731,9 +731,7 @@ function App(){
   const updateOrder=async(id,patch)=>{
     setOrders(prev=>prev.map(o=>{
       if(o.id!==id)return o;
-      const skip=new Set(["history","expanded","products","seq","id"]);
-      const note=Object.entries(patch).filter(([k])=>!skip.has(k)).map(([k,v])=>`${k}:"${o[k]}"→"${v}"`).join(", ");
-      const updated={...o,...patch,history:note?[...o.history,`${todayStr()}: ${note}`]:o.history};
+      const updated={...o,...patch};
       saveOrderToFS(updated);
       return updated;
     }));
@@ -964,7 +962,6 @@ function OrderCard({order:o,onUpdate,onAdvance,onEdit,onPrint,onDeleteRequest}){
             </table>
           </div>
           {o.notes&&<div style={{fontSize:13,color:"#888",marginBottom:10,background:"#1a1a00",padding:"7px 10px",borderRadius:6,border:"1px solid #333300"}}>📝 {o.notes}</div>}
-          {o.history&&o.history.length>0&&<div style={{fontSize:12,color:"#444",marginBottom:12}}>{o.history.map((h,i)=><div key={i}>· {h}</div>)}</div>}
           <SteadfastButton order={o} grandTotal={grandTotal} onUpdate={onUpdate}/>
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
             <button onClick={onPrint} style={bS("#1a1a1a","#fff",12,"#cc0000")}>🖨️ Invoice</button>
@@ -975,6 +972,22 @@ function OrderCard({order:o,onUpdate,onAdvance,onEdit,onPrint,onDeleteRequest}){
         </div>
       )}
     </div>
+  );
+}
+
+// ── COPY FIELD HELPER ────────────────────────────────────────────────────────
+function CopyField({label,value,link}){
+  const[copied,setCopied]=React.useState(false);
+  const copy=()=>{navigator.clipboard.writeText(value).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),1500);});};
+  return(
+    <span style={{display:"inline-flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
+      <span style={{color:"#888"}}>{label}:</span>
+      {link
+        ?<a href={link} target="_blank" rel="noopener noreferrer" style={{color:"#fff",fontWeight:"bold",letterSpacing:0.5,textDecoration:"underline",textUnderlineOffset:2}}>{value}</a>
+        :<strong style={{color:"#fff",letterSpacing:0.5}}>{value}</strong>
+      }
+      <button onClick={copy} style={{background:copied?"#0a3a0a":"#1a1a1a",color:copied?"#44cc44":"#aaa",border:`1px solid ${copied?"#005500":"#333"}`,borderRadius:4,padding:"1px 7px",cursor:"pointer",fontSize:11,fontWeight:"bold",transition:"all 0.2s"}}>{copied?"✓":"Copy"}</button>
+    </span>
   );
 }
 
@@ -1083,14 +1096,8 @@ function SteadfastButton({order:o,grandTotal,onUpdate}){
       {status==="ok"&&consignment
         ?<div style={{background:"#0a2a0a",border:"1px solid #005500",borderRadius:6,padding:"8px 12px",fontSize:12,color:"#44cc44",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
           <span>✅ Booked on Steadfast</span>
-          {consignment.parcelId&&<span style={{color:"#aaa"}}>Parcel ID: <strong style={{color:"#fff"}}>{consignment.parcelId}</strong></span>}
-          {consignment.trackingCode&&(
-            <span style={{color:"#aaa",display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-              Tracking: <strong style={{color:"#fff",letterSpacing:1}}>{consignment.trackingCode}</strong>
-              <a href="https://steadfast.com.bd/tracking" target="_blank" rel="noopener noreferrer"
-                style={{color:"#55aaff",fontSize:11,textDecoration:"underline"}}>Track on Steadfast ↗</a>
-            </span>
-          )}
+          {consignment.parcelId&&<CopyField label="Parcel ID" value={String(consignment.parcelId)}/>}
+          {consignment.trackingCode&&<CopyField label="Tracking" value={consignment.trackingCode} link="https://steadfast.com.bd/tracking"/>}
           <button onClick={unbook} title="Mark as not booked" style={{marginLeft:"auto",...bS("#1a0000","#cc4444",11,"#330000"),padding:"3px 8px"}}>✕ Unbook</button>
         </div>
         :<div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
@@ -1359,7 +1366,7 @@ function OrderForm({draft,setDraft,onSave,onCancel}){
   const grandTotal=draft.deliveryPaid?rev:rev+dc;
   return(
     <div>
-      <h2 style={{margin:"0 0 14px",fontSize:17,color:"#fff"}}>{draft.history?.length>1?"✏️ Edit Order":"📦 New Order"}</h2>
+      <h2 style={{margin:"0 0 14px",fontSize:17,color:"#fff"}}>{draft.id?"✏️ Edit Order":"📦 New Order"}</h2>
       <Sec title="👤 Client">
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
           <Field label="Client Name *"><input style={iS()} value={draft.clientName} onChange={e=>set("clientName",e.target.value)} placeholder="Rahim Uddin"/></Field>
