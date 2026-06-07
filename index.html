@@ -944,17 +944,18 @@ function App(){
           <>
             <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap",alignItems:"center"}}>
               <input placeholder="Search client or product…" value={search} onChange={e=>setSearch(e.target.value)} style={iS({flex:1,minWidth:150})}/>
-              <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={iS({width:130})}>
-                <option>All</option>{STATUS_FLOW.map(s=><option key={s}>{s}</option>)}
-              </select>
               <button onClick={()=>{setDraft(makeOrder());setShowForm(true);}} style={bS("#cc0000","#fff")}>+ New Order</button>
             </div>
             <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
-              {STATUS_FLOW.map(s=>(
-                <div key={s} style={{background:STATUS_COLOR[s].bg,border:`1px solid ${STATUS_COLOR[s].border}`,color:STATUS_COLOR[s].text,borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:"bold"}}>
-                  {s}: {orders.filter(o=>o.status===s).length}
-                </div>
-              ))}
+              {STATUS_FLOW.map(s=>{
+                const active=filterStatus===s;
+                return(
+                  <div key={s} onClick={()=>setFilterStatus(active?"All":s)} style={{background:active?STATUS_COLOR[s].bg:"#1a1a1a",border:`1px solid ${active?STATUS_COLOR[s].border:"#333"}`,color:active?STATUS_COLOR[s].text:"#555",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:"bold",cursor:"pointer",transition:"all 0.15s",userSelect:"none"}}>
+                    {s}: {orders.filter(o=>o.status===s).length}
+                  </div>
+                );
+              })}
+              {filterStatus!=="All"&&<div onClick={()=>setFilterStatus("All")} style={{background:"#1a1a1a",border:"1px solid #333",color:"#666",borderRadius:8,padding:"5px 12px",fontSize:12,cursor:"pointer",userSelect:"none"}}>✕ All</div>}
             </div>
             {visible.length===0&&<div style={{textAlign:"center",color:"#444",marginTop:60,fontSize:15}}>No orders yet. Add one above!</div>}
             {visible.map(o=>(
