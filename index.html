@@ -1029,18 +1029,22 @@ function SteadfastButton({order:o,grandTotal,onUpdate}){
         }),
       });
       const data=await res.json();
-      if(res.ok&&(data.status===200||data.consignment)){
-        const c=data.consignment||{};
-        const trackingCode=c.tracking_code||data.tracking_code||"";
-        const parcelId=c.id||c.consignment_id||data.consignment_id||"";
+      // Steadfast success: { status: 200, consignment: { consignment_id, tracking_code } }
+      const c=data.consignment||null;
+      const trackingCode=(c&&c.tracking_code)||"";
+      const parcelId=(c&&(c.consignment_id||c.id))||"";
+      const isRealSuccess=data.status===200&&c&&(trackingCode||parcelId);
+      if(isRealSuccess){
         const info={trackingCode,parcelId,bookedAt:new Date().toISOString()};
         setConsignment(info);
         setStatus("ok");
         // Persist to Firestore so it survives refresh
         if(onUpdate)onUpdate(o.id,{steadfastConsignment:info});
       }else{
+        // Show full raw Steadfast response so we know exactly what went wrong
+        const errDetail=data.message||(data.errors&&JSON.stringify(data.errors))||JSON.stringify(data)||"HTTP "+res.status;
         setStatus("err");
-        setErrMsg(data.message||(typeof data.errors==="string"?data.errors:JSON.stringify(data.errors))||"Steadfast error.");
+        setErrMsg("Steadfast said: "+errDetail);
       }
     }catch(e){
       setStatus("err");setErrMsg("Network error: "+e.message);
@@ -1081,12 +1085,11 @@ function SteadfastButton({order:o,grandTotal,onUpdate}){
           <span>✅ Booked on Steadfast</span>
           {consignment.parcelId&&<span style={{color:"#aaa"}}>Parcel ID: <strong style={{color:"#fff"}}>{consignment.parcelId}</strong></span>}
           {consignment.trackingCode&&(
-            <span style={{color:"#aaa"}}>Tracking: <a
-              href={`https://steadfast.com.bd/t/${consignment.trackingCode}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{color:"#55aaff",fontWeight:"bold",textDecoration:"underline"}}
-            >{consignment.trackingCode}</a></span>
+            <span style={{color:"#aaa",display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+              Tracking: <strong style={{color:"#fff",letterSpacing:1}}>{consignment.trackingCode}</strong>
+              <a href="https://steadfast.com.bd/tracking" target="_blank" rel="noopener noreferrer"
+                style={{color:"#55aaff",fontSize:11,textDecoration:"underline"}}>Track on Steadfast ↗</a>
+            </span>
           )}
           <button onClick={unbook} title="Mark as not booked" style={{marginLeft:"auto",...bS("#1a0000","#cc4444",11,"#330000"),padding:"3px 8px"}}>✕ Unbook</button>
         </div>
