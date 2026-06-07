@@ -51,7 +51,7 @@
   @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
   @keyframes flicker{0%,100%{opacity:1}92%{opacity:.95}94%{opacity:.85}96%{opacity:1}}
   @keyframes glow{0%,100%{text-shadow:0 0 8px #cc0000,0 0 20px #cc0000}50%{text-shadow:0 0 16px #cc0000,0 0 40px #cc0000,0 0 60px #ff4444}}
-  @keyframes glowStaff{0%,100%{text-shadow:0 0 8px #00aaff,0 0 20px #00aaff}50%{text-shadow:0 0 16px #00aaff,0 0 40px #00aaff,0 0 60px #44ccff}}
+  @keyframes glowStaff{0%,100%{text-shadow:0 0 8px #cc0000,0 0 20px #cc0000}50%{text-shadow:0 0 16px #cc0000,0 0 40px #cc0000,0 0 60px #ff4444}}
   @keyframes spin{to{transform:rotate(360deg)}}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
   @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
@@ -61,7 +61,7 @@
   .glow-staff{animation:glowStaff 2s ease-in-out infinite}
   .pin-btn:hover{transform:scale(1.05)}
   .pin-btn:active{transform:scale(.95)}
-  .staff-pin-btn:hover{background:#001a33!important;transform:scale(1.05)}
+  .staff-pin-btn:hover{background:#1a0000!important;transform:scale(1.05)}
   .staff-pin-btn:active{transform:scale(.95)}
   .card-enter{animation:fadeIn .3s ease forwards}
   .pulse-dot{animation:pulse 2s ease-in-out infinite}
@@ -85,16 +85,16 @@ const STATUS_COLOR={
 };
 const STAFF_STATUS_COLOR={
   Talking:  {bg:"#1a0a0a",text:"#ff5555",border:"#330000",badge:"rgba(255,68,68,0.12)"},
-  Confirmed:{bg:"#0a0a1a",text:"#55aaff",border:"#001133",badge:"rgba(68,136,255,0.12)"},
+  Confirmed:{bg:"#0d0d0d",text:"#ffaa44",border:"#443300",badge:"rgba(255,170,0,0.12)"},
   Printing: {bg:"#1a1000",text:"#ffbb33",border:"#443300",badge:"rgba(255,170,0,0.12)"},
   Delivered:{bg:"#001a00",text:"#44dd66",border:"#003300",badge:"rgba(68,204,68,0.12)"},
 };
 const PAYMENT_METHODS=["COD","Bkash","Nagad","Cash"];
-const USERS=[
-  {id:"owner1",label:"Owner",pin:"4321",role:"owner"},
-  {id:"owner2",label:"Partner",pin:"8765",role:"owner"},
-  {id:"staff1",label:"Staff",pin:"6969",role:"staff"},
+const getUsers=()=>[
+  {id:"owner1",label:"Owner",pin:localStorage.getItem("pin_owner")||"3860",role:"owner"},
+  {id:"staff1",label:"Staff",pin:localStorage.getItem("pin_staff")||"6969",role:"staff"},
 ];
+const USERS=getUsers();
 
 const todayStr=()=>new Date().toISOString().split("T")[0];
 const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x.toISOString().split("T")[0];};
@@ -325,7 +325,7 @@ function RetroLoginScreen({onLogin}){
   const[err,setErr]=useState("");
   const[shake,setShake]=useState(false);
   const attempt=useCallback(()=>{
-    const found=USERS.find(u=>u.pin===pin);
+    const found=getUsers().find(u=>u.pin===pin);
     if(found){onLogin(found);}
     else{setShake(true);setErr("WRONG PIN. TRY AGAIN.");setPin("");setTimeout(()=>setShake(false),600);}
   },[pin,onLogin]);
@@ -400,7 +400,7 @@ function StaffPnlView({data,from,to,onFromChange,onToChange}){
           <div style={{position:"relative"}}><input type="text" readOnly value={from?from.split("-").reverse().join("/"):""} style={{...iS({width:130}),cursor:"pointer"}}/><input type="date" value={from} onChange={e=>onFromChange(e.target.value)} style={{position:"absolute",inset:0,opacity:0,width:"100%",cursor:"pointer"}}/></div>
           <label style={{fontWeight:"bold",color:"#aaa",fontSize:13}}>To:</label>
           <div style={{position:"relative"}}><input type="text" readOnly value={to?to.split("-").reverse().join("/"):""} style={{...iS({width:130}),cursor:"pointer"}}/><input type="date" value={to} onChange={e=>onToChange(e.target.value)} style={{position:"absolute",inset:0,opacity:0,width:"100%",cursor:"pointer"}}/></div>
-          <span style={{color:"#444",fontSize:12}}>Delivered orders only</span>
+          <span style={{color:"#664444",fontSize:12}}>Delivered orders only</span>
         </div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
           {[["thisMonth","This Month"],["lastMonth","Last Month"],["thisYear","This Year"],["allTime","All Time"]].map(([k,l])=>(
@@ -416,7 +416,7 @@ function StaffPnlView({data,from,to,onFromChange,onToChange}){
         <SCard label="Grand Total" value={tk(data.total)}     color="#cc0000"/>
       </div>
       {data.orders.length===0
-        ?<div style={{textAlign:"center",color:"#333",marginTop:40}}>No delivered orders for this period.</div>
+        ?<div style={{textAlign:"center",color:"#554444",marginTop:40}}>No delivered orders for this period.</div>
         :data.orders.slice().sort((a,b)=>{
             const ai=parseInt((a.invoiceNum||"").replace(/\D/g,""))||0;
             const bi=parseInt((b.invoiceNum||"").replace(/\D/g,""))||0;
@@ -458,9 +458,10 @@ function StaffPnlView({data,from,to,onFromChange,onToChange}){
 // ─── STAFF DASHBOARD ─────────────────────────────────────────────────────────
 function StaffDashboard({orders,onUpdateDeliveryPaid,onLock,pnlData,pnlFrom,pnlTo,onPnlFromChange,onPnlToChange}){
   const[filter,setFilter]=useState("All");
+  const[filterUnpaidDC,setFilterUnpaidDC]=useState(false);
   const[search,setSearch]=useState("");
   const[expandedId,setExpandedId]=useState(null);
-  const[staffTab,setStaffTab]=useState("orders"); // "orders" | "expenses" | "pnl"
+  const[staffTab,setStaffTab]=useState("orders"); // "orders" | "expenses" | "pnl" | "months"
   const today=todayStr();
 
   const printToday=orders.filter(o=>o.printDate===today&&o.status==="Confirmed");
@@ -477,7 +478,8 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock,pnlData,pnlFrom,pnlT
       o.clientName.toLowerCase().includes(search.toLowerCase())||
       (o.phone||"").includes(search)||
       o.products.some(p=>p.name.toLowerCase().includes(search.toLowerCase()));
-    return ms&&mq;
+    const mu=!filterUnpaidDC||(parseFloat(o.deliveryCharge)>0&&!o.deliveryPaid);
+    return ms&&mq&&mu;
   }).sort((a,b)=>(b.seq||0)-(a.seq||0));
 
   const counts={};
@@ -490,15 +492,15 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock,pnlData,pnlFrom,pnlT
   return(
     <div style={{minHeight:"100vh",background:"#050508",fontFamily:"'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,sans-serif",color:"#c8d8e8"}}>
       {/* Scanline overlay */}
-      <div style={{position:"fixed",inset:0,pointerEvents:"none",background:"repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,200,255,0.015) 3px,rgba(0,200,255,0.015) 4px)",zIndex:9998}}/>
+      <div style={{position:"fixed",inset:0,pointerEvents:"none",background:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px)",zIndex:9998}}/>
 
       {/* Header */}
-      <div style={{background:"linear-gradient(90deg,#000814 0%,#001020 50%,#000814 100%)",borderBottom:"1px solid #0a2a40",padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10,position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 20px rgba(0,150,255,0.1)"}}>
+      <div style={{background:"#111",borderBottom:"2px solid #cc0000",padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10,position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 20px rgba(204,0,0,0.15)"}}>
         <div style={{display:"flex",alignItems:"center",gap:14}}>
-          <img src={LOGO_URL} alt="PL Logo" style={{width:36,height:36,borderRadius:8,border:"1px solid #0044aa",boxShadow:"0 0 10px rgba(0,100,200,0.4)",objectFit:"contain",background:"#000"}}/>
+          <img src={LOGO_URL} alt="PL Logo" style={{width:36,height:36,borderRadius:8,border:"1px solid #cc0000",boxShadow:"0 0 8px rgba(204,0,0,0.4)",objectFit:"contain",background:"#000"}}/>
           <div>
-            <div style={{fontSize:15,fontWeight:"bold",color:"#55ccff",letterSpacing:2}}>POSTER LAGAI</div>
-            <div style={{fontSize:10,color:"#2a5a7a",letterSpacing:1}}>OPERATIONS TERMINAL</div>
+            <div style={{fontSize:15,fontWeight:"bold",color:"#cc0000",letterSpacing:2}}>POSTER LAGAI</div>
+            <div style={{fontSize:10,color:"#551111",letterSpacing:1}}>OPERATIONS TERMINAL</div>
           </div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
@@ -507,11 +509,12 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock,pnlData,pnlFrom,pnlT
             <span style={{fontSize:11,color:"#44dd66",letterSpacing:1}}>LIVE</span>
           </div>
           <div style={{display:"flex",gap:4}}>
-            <button onClick={()=>setStaffTab("orders")} style={{background:staffTab==="orders"?"#0a3050":"rgba(0,20,40,0.6)",color:staffTab==="orders"?"#55aaff":"#3a6a8a",border:`1px solid ${staffTab==="orders"?"#0a5080":"#0a2a40"}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontWeight:"bold"}}>📦 Orders</button>
-            <button onClick={()=>setStaffTab("expenses")} style={{background:staffTab==="expenses"?"#301000":"rgba(0,20,40,0.6)",color:staffTab==="expenses"?"#ffaa44":"#3a6a8a",border:`1px solid ${staffTab==="expenses"?"#804020":"#0a2a40"}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontWeight:"bold"}}>💸 Expenses</button>
-            <button onClick={()=>setStaffTab("pnl")} style={{background:staffTab==="pnl"?"#1a0a2a":"rgba(0,20,40,0.6)",color:staffTab==="pnl"?"#cc88ff":"#3a6a8a",border:`1px solid ${staffTab==="pnl"?"#550088":"#0a2a40"}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontWeight:"bold"}}>📊 P&L</button>
+            <button onClick={()=>setStaffTab("orders")} style={{background:staffTab==="orders"?"#1a0000":"rgba(20,0,0,0.6)",color:staffTab==="orders"?"#cc0000":"#554444",border:`1px solid ${staffTab==="orders"?"#cc0000":"#2a1010"}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontWeight:"bold"}}>📦 Orders</button>
+            <button onClick={()=>setStaffTab("expenses")} style={{background:staffTab==="expenses"?"#1a0a00":"rgba(20,0,0,0.6)",color:staffTab==="expenses"?"#ffaa44":"#554444",border:`1px solid ${staffTab==="expenses"?"#804020":"#2a1010"}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontWeight:"bold"}}>💸 Expenses</button>
+            <button onClick={()=>setStaffTab("pnl")} style={{background:staffTab==="pnl"?"#1a001a":"rgba(20,0,0,0.6)",color:staffTab==="pnl"?"#cc88ff":"#554444",border:`1px solid ${staffTab==="pnl"?"#550088":"#2a1010"}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontWeight:"bold"}}>📊 P&L</button>
+            <button onClick={()=>setStaffTab("months")} style={{background:staffTab==="months"?"#1a0000":"rgba(20,0,0,0.6)",color:staffTab==="months"?"#cc0000":"#554444",border:`1px solid ${staffTab==="months"?"#cc0000":"#2a1010"}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontWeight:"bold"}}>📅 Months</button>
           </div>
-          <div style={{background:"rgba(0,80,160,0.2)",border:"1px solid #003366",borderRadius:20,padding:"4px 14px",fontSize:11,color:"#5599cc",letterSpacing:1}}>{new Date().toLocaleDateString("en-BD",{weekday:"short",day:"numeric",month:"short"})}</div>
+          <div style={{background:"rgba(80,0,0,0.2)",border:"1px solid #330000",borderRadius:20,padding:"4px 14px",fontSize:11,color:"#aa4444",letterSpacing:1}}>{new Date().toLocaleDateString("en-BD",{weekday:"short",day:"numeric",month:"short"})}</div>
           <button onClick={onLock} style={{background:"rgba(200,0,0,0.1)",color:"#cc4444",border:"1px solid #330000",borderRadius:6,padding:"5px 14px",cursor:"pointer",fontSize:11,fontWeight:"bold",letterSpacing:1}}>LOCK</button>
         </div>
       </div>
@@ -545,7 +548,7 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock,pnlData,pnlFrom,pnlT
             const sc=STAFF_STATUS_COLOR[s];
             return(
               <button key={s} onClick={()=>setFilter(filter===s?"All":s)}
-                style={{background:filter===s?sc.badge:"rgba(255,255,255,0.02)",border:`1px solid ${filter===s?sc.border:"#0a1a2a"}`,borderRadius:10,padding:"12px 10px",cursor:"pointer",textAlign:"center",transition:"all 0.2s",boxShadow:filter===s?`0 0 12px ${sc.border}40`:"none"}}>
+                style={{background:filter===s?sc.badge:"rgba(255,255,255,0.02)",border:`1px solid ${filter===s?sc.border:"#2a1010"}`,borderRadius:10,padding:"12px 10px",cursor:"pointer",textAlign:"center",transition:"all 0.2s",boxShadow:filter===s?`0 0 12px ${sc.border}40`:"none"}}>
                 <div style={{fontSize:22,fontWeight:"bold",color:sc.text}}>{counts[s]}</div>
                 <div style={{fontSize:11,color:"#2a4a5a",marginTop:4,letterSpacing:1}}>{s.toUpperCase()}</div>
               </button>
@@ -555,17 +558,17 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock,pnlData,pnlFrom,pnlT
 
         {/* NEXT TO PRINT */}
         {nextToPrint.length>0&&(
-          <div style={{background:"rgba(0,40,60,0.4)",border:"1px solid #0a3050",borderRadius:10,padding:"14px 16px",marginBottom:18}}>
+          <div style={{background:"rgba(20,0,0,0.4)",border:"1px solid #330000",borderRadius:10,padding:"14px 16px",marginBottom:18}}>
             <div style={{fontSize:11,color:"#2a6080",letterSpacing:2,marginBottom:10,fontWeight:"bold"}}>▶ NEXT UP FOR PRINTING</div>
             <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
               {nextToPrint.map((o,i)=>{
                 const isFirst=i===0;
                 return(
-                  <div key={o.id} style={{background:isFirst?"rgba(255,170,0,0.08)":"rgba(255,255,255,0.03)",border:`1px solid ${isFirst?"#664400":"#0a2030"}`,borderRadius:8,padding:"10px 14px",flex:1,minWidth:180}}>
+                  <div key={o.id} style={{background:isFirst?"rgba(255,170,0,0.08)":"rgba(255,255,255,0.02)",border:`1px solid ${isFirst?"#664400":"#1a1010"}`,borderRadius:8,padding:"10px 14px",flex:1,minWidth:180}}>
                     {isFirst&&<div style={{fontSize:10,color:"#ffaa00",letterSpacing:1,marginBottom:4}}>⚡ UP NEXT</div>}
                     <div style={{fontWeight:"bold",color:"#fff",fontSize:13}}>#{o.seq} {o.clientName}</div>
-                    <div style={{fontSize:12,color:"#3a6a8a",marginTop:3}}>Print: <span style={{color:isFirst?"#ffbb33":"#5599cc"}}>{fmtDateShort(o.printDate)}</span></div>
-                    {o.deliveryDate&&<div style={{fontSize:12,color:"#3a6a8a",marginTop:2}}>Deliver: <span style={{color:"#44cc88"}}>{fmtDateShort(o.deliveryDate)}</span></div>}
+                    <div style={{fontSize:12,color:"#664444",marginTop:3}}>Print: <span style={{color:isFirst?"#ffbb33":"#884444"}}>{fmtDateShort(o.printDate)}</span></div>
+                    {o.deliveryDate&&<div style={{fontSize:12,color:"#664444",marginTop:2}}>Deliver: <span style={{color:"#44cc88"}}>{fmtDateShort(o.deliveryDate)}</span></div>}
                     <div style={{fontSize:11,color:"#2a4a5a",marginTop:4}}>{o.products.filter(p=>p.name).map(p=>`${p.name}${p.qty?` ×${p.qty}`:""}`).join(", ")||"—"}</div>
                   </div>
                 );
@@ -575,17 +578,23 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock,pnlData,pnlFrom,pnlT
         )}
 
         {/* SEARCH + FILTER */}
-        <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+        <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap"}}>
           <div style={{flex:1,minWidth:180,position:"relative"}}>
-            <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"#2a5a7a",fontSize:13}}>⌕</span>
+            <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"#664444",fontSize:13}}>⌕</span>
             <input placeholder="Search by name, phone, product…" value={search} onChange={e=>setSearch(e.target.value)}
-              style={{width:"100%",background:"rgba(0,20,40,0.6)",border:"1px solid #0a2a40",borderRadius:8,padding:"9px 10px 9px 30px",fontSize:12,color:"#aaccdd",outline:"none",boxSizing:"border-box"}}/>
+              style={{width:"100%",background:"rgba(20,0,0,0.5)",border:"1px solid #2a1010",borderRadius:8,padding:"9px 10px 9px 30px",fontSize:12,color:"#ccaaaa",outline:"none",boxSizing:"border-box"}}/>
           </div>
           <select value={filter} onChange={e=>setFilter(e.target.value)}
-            style={{background:"rgba(0,20,40,0.6)",border:"1px solid #0a2a40",borderRadius:8,padding:"9px 12px",fontSize:12,color:"#aaccdd",outline:"none",cursor:"pointer"}}>
+            style={{background:"rgba(20,0,0,0.5)",border:"1px solid #2a1010",borderRadius:8,padding:"9px 12px",fontSize:12,color:"#ccaaaa",outline:"none",cursor:"pointer"}}>
             <option value="All">All Orders</option>
             {STATUS_FLOW.map(s=><option key={s} value={s}>{s} ({counts[s]})</option>)}
           </select>
+        </div>
+        <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+          {filter!=="All"&&<div onClick={()=>setFilter("All")} style={{background:"#1a1a1a",border:"1px solid #333",color:"#666",borderRadius:8,padding:"5px 12px",fontSize:12,cursor:"pointer",userSelect:"none"}}>✕ All</div>}
+          <div onClick={()=>setFilterUnpaidDC(f=>!f)} style={{background:filterUnpaidDC?"#2a0a0a":"#1a1a1a",border:`1px solid ${filterUnpaidDC?"#cc4444":"#333"}`,color:filterUnpaidDC?"#ff4444":"#555",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:"bold",cursor:"pointer",transition:"all 0.15s",userSelect:"none",marginLeft:"auto"}}>
+            🚚 Unpaid DC: {orders.filter(o=>parseFloat(o.deliveryCharge)>0&&!o.deliveryPaid).length}
+          </div>
         </div>
 
         {/* ORDER LIST */}
@@ -604,19 +613,120 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock,pnlData,pnlFrom,pnlT
         )}
 
         {staffTab==="pnl"&&(
-          <div>
-            <div style={{background:"rgba(80,0,120,0.08)",border:"1px solid #330055",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:"#aa88cc"}}>
-              📊 View-only: P&L data is read-only for staff. Contact the owner to update order statuses.
-            </div>
-            <StaffPnlView data={pnlData} from={pnlFrom} to={pnlTo} onFromChange={onPnlFromChange} onToChange={onPnlToChange}/>
-          </div>
+          <StaffPnlView data={pnlData} from={pnlFrom} to={pnlTo} onFromChange={onPnlFromChange} onToChange={onPnlToChange}/>
+        )}
+        {staffTab==="months"&&(
+          <StaffMonthlyFolders orders={orders}/>
         )}
       </div>
 
       {/* Footer */}
-      <div style={{textAlign:"center",padding:"20px",fontSize:10,color:"#0a2a3a",letterSpacing:1,borderTop:"1px solid #050e14",marginTop:20}}>
+      <div style={{textAlign:"center",padding:"20px",fontSize:10,color:"#2a1a1a",letterSpacing:1,borderTop:"1px solid #1a1a1a",marginTop:20}}>
         POSTER LAGAI SYSTEMS · OPERATIONS · {new Date().getFullYear()}
       </div>
+    </div>
+  );
+}
+
+
+// ─── STAFF MONTHLY FOLDERS (read-only — no PDF, no invoice) ──────────────────
+function StaffMonthlyFolders({orders}){
+  const[openMonths,setOpenMonths]=React.useState({});
+  const toggleMonth=(key)=>setOpenMonths(prev=>({...prev,[key]:!prev[key]}));
+  const MONTH_NAMES=["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+  const grouped=React.useMemo(()=>{
+    const map={};
+    orders.forEach(o=>{
+      const d=o.deliveryDate||o.orderDate;
+      if(!d)return;
+      const key=d.slice(0,7);
+      if(!map[key])map[key]=[];
+      map[key].push(o);
+    });
+    return Object.entries(map).sort((a,b)=>b[0].localeCompare(a[0]));
+  },[orders]);
+
+  const monthLabel=(key)=>{
+    const[y,m]=key.split("-");
+    return`${MONTH_NAMES[parseInt(m)-1]} ${y}`;
+  };
+
+  const monthStats=(ords)=>{
+    const revenue=ords.reduce((s,o)=>s+orderRevenue(o.products),0);
+    const courierCost=ords.reduce((s,o)=>s+(parseFloat(o.actualDC)||parseFloat(o.deliveryCharge)||0),0);
+    const grandTotal=ords.reduce((s,o)=>{const rev=orderRevenue(o.products);const dc=parseFloat(o.deliveryCharge)||0;return s+(o.deliveryPaid?rev:rev+dc);},0);
+    return{revenue,courierCost,grandTotal};
+  };
+
+  if(grouped.length===0)return(
+    <div style={{textAlign:"center",color:"#554444",marginTop:60,fontSize:14,letterSpacing:1}}>NO DELIVERED ORDERS YET</div>
+  );
+
+  return(
+    <div style={{display:"flex",flexWrap:"wrap",gap:16,alignItems:"flex-start"}}>
+      {grouped.map(([key,ords])=>{
+        const isOpen=!!openMonths[key];
+        const stats=monthStats(ords);
+        const sorted=ords.slice().sort((a,b)=>(b.seq||0)-(a.seq||0));
+        return(
+          <div key={key} style={{borderRadius:10,overflow:"hidden",border:"1px solid #2a2a2a",display:"flex",flexDirection:"column",width:"calc(20% - 13px)",minWidth:200,boxSizing:"border-box"}}>
+            <div onClick={()=>toggleMonth(key)} style={{background:"#cc0000",padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontWeight:"bold",fontSize:14,color:"#fff",letterSpacing:0.5}}>📅 {monthLabel(key)}</span>
+              <span style={{background:"rgba(0,0,0,0.25)",color:"#ffcccc",borderRadius:20,padding:"2px 9px",fontSize:11,fontWeight:"bold"}}>{ords.length} orders</span>
+            </div>
+            <div style={{background:"#0d0d0d",padding:"14px 16px",flex:1,display:"flex",flexDirection:"column",gap:10}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Revenue</span>
+                <span style={{fontWeight:"bold",color:"#4488ff",fontSize:14}}>{tk(stats.revenue)}</span>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Courier Cost</span>
+                <span style={{fontWeight:"bold",color:"#aaa",fontSize:14}}>{tk(stats.courierCost)}</span>
+              </div>
+              <div style={{borderTop:"1px solid #1e1e1e",paddingTop:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Grand Total</span>
+                <span style={{fontWeight:"bold",color:"#cc0000",fontSize:16}}>{tk(stats.grandTotal)}</span>
+              </div>
+            </div>
+            <div style={{background:"#1a1a1a",padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:"1px solid #2a2a2a"}}>
+              <span onClick={()=>toggleMonth(key)} style={{color:"#555",fontSize:12,cursor:"pointer",userSelect:"none"}}>{isOpen?"▲ Hide orders":"▼ View orders"}</span>
+            </div>
+            {isOpen&&(
+              <div style={{padding:"12px",background:"#0d0d0d",borderTop:"1px solid #1e1e1e"}}>
+                {sorted.map(o=>{
+                  const rev=orderRevenue(o.products),dc=parseFloat(o.deliveryCharge)||0,grand=o.deliveryPaid?rev:rev+dc;
+                  return(
+                    <div key={o.id} style={{background:"#111",border:"1px solid #1e1e1e",borderRadius:8,marginBottom:8,overflow:"hidden"}}>
+                      <div style={{background:"#1a1a1a",padding:"8px 14px",display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:6,alignItems:"center"}}>
+                        <span style={{fontWeight:"bold",color:"#fff",fontSize:13}}>#{o.seq} {o.clientName}</span>
+                        <div style={{display:"flex",gap:10,alignItems:"center",fontSize:12,flexWrap:"wrap"}}>
+                          <span style={{color:"#666"}}>{o.paymentMethod}</span>
+                          {dc>0&&<span style={{color:o.deliveryPaid?"#44cc44":"#cc4444"}}>🚚 {tk(dc)} {o.deliveryPaid?"Paid":"Unpaid"}</span>}
+                          <span style={{color:"#cc0000",fontWeight:"bold"}}>Total: {tk(grand)}</span>
+                        </div>
+                      </div>
+                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                        <thead><tr style={{background:"#0d0d0d"}}>{["Item","Qty","Amount"].map(h=><th key={h} style={{padding:"6px 10px",textAlign:h==="Item"?"left":"right",color:"#555"}}>{h}</th>)}</tr></thead>
+                        <tbody>{o.products.map((p,i)=>(
+                          <tr key={p.id} style={{background:i%2===0?"#111":"#0d0d0d",borderBottom:"1px solid #1a1a1a"}}>
+                            <td style={{padding:"5px 10px",color:"#fff"}}>{p.name||"—"}</td>
+                            <td style={{padding:"5px 10px",color:"#666",textAlign:"right"}}>{p.qty||"—"}</td>
+                            <td style={{padding:"5px 10px",color:"#fff",textAlign:"right"}}>{tk(productTotal(p))}</td>
+                          </tr>
+                        ))}</tbody>
+                        <tfoot>
+                          <tr style={{background:"#cc0000"}}><td colSpan={2} style={{padding:"6px 10px",color:"#fff",fontWeight:"bold"}}>Total</td><td style={{padding:"6px 10px",color:"#fff",fontWeight:"bold",textAlign:"right"}}>{tk(grand)}</td></tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -634,18 +744,18 @@ function StaffOrderCard({order:o,expanded,onToggle,onToggleDelivery}){
   const daysUntilDelivery=o.deliveryDate?Math.round((new Date(o.deliveryDate)-new Date(today))/(1000*60*60*24)):null;
 
   return(
-    <div className="card-enter" style={{background:"rgba(0,10,20,0.7)",border:`1px solid ${isLate?"#330000":expanded?"#0a3050":"#050f18"}`,borderRadius:10,marginBottom:8,overflow:"hidden",transition:"border-color 0.2s",boxShadow:isLate?"0 0 15px rgba(200,0,0,0.08)":expanded?"0 0 20px rgba(0,80,150,0.08)":"none"}}>
+    <div className="card-enter" style={{background:"rgba(13,13,13,0.9)",border:`1px solid ${isLate?"#cc0000":expanded?"#330000":"#1a1a1a"}`,borderRadius:10,marginBottom:8,overflow:"hidden",transition:"border-color 0.2s",boxShadow:isLate?"0 0 15px rgba(200,0,0,0.15)":expanded?"0 0 20px rgba(200,0,0,0.1)":"none"}}>
 
       {/* Card Header */}
       <div onClick={onToggle} style={{display:"flex",alignItems:"center",gap:10,padding:"13px 16px",cursor:"pointer",flexWrap:"wrap"}}>
         {/* Seq badge */}
-        <div style={{width:34,height:34,background:"rgba(0,60,100,0.3)",border:"1px solid #0a2a40",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:"bold",color:"#3a7aaa",flexShrink:0}}>
+        <div style={{width:34,height:34,background:"rgba(40,0,0,0.4)",border:"1px solid #330000",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:"bold",color:"#883333",flexShrink:0}}>
           {o.seq}
         </div>
         <div style={{flex:1,minWidth:140}}>
           <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
             <span style={{fontWeight:"bold",fontSize:14,color:"#cce0f0"}}>{o.clientName||"Unnamed"}</span>
-            {o.phone&&<span style={{color:"#2a5a7a",fontSize:11}}>📞 {o.phone}</span>}
+            {o.phone&&<span style={{color:"#664444",fontSize:11}}>📞 {o.phone}</span>}
             {isLate&&<span style={{background:"rgba(200,0,0,0.15)",color:"#ff4444",fontSize:10,fontWeight:"bold",padding:"2px 7px",borderRadius:4,letterSpacing:1}}>LATE</span>}
             {printToday&&<span style={{background:"rgba(255,150,0,0.15)",color:"#ffaa33",fontSize:10,fontWeight:"bold",padding:"2px 7px",borderRadius:4,letterSpacing:1}}>PRINT TODAY</span>}
             {printSoon&&!printToday&&<span style={{background:"rgba(255,170,0,0.1)",color:"#ffbb44",fontSize:10,fontWeight:"bold",padding:"2px 7px",borderRadius:4,letterSpacing:1}}>PRINT SOON</span>}
@@ -659,12 +769,12 @@ function StaffOrderCard({order:o,expanded,onToggle,onToggleDelivery}){
           <span style={{background:sc.badge,color:sc.text,border:`1px solid ${sc.border}`,borderRadius:20,padding:"3px 10px",fontSize:10,fontWeight:"bold",letterSpacing:1}}>{o.status.toUpperCase()}</span>
           {/* Delivery date */}
           {o.deliveryDate&&(
-            <span style={{background:"rgba(0,30,60,0.5)",color:daysUntilDelivery!==null&&daysUntilDelivery<0?"#ff5555":daysUntilDelivery===0?"#ffbb33":daysUntilDelivery<=2?"#88dd44":"#2a6a9a",border:"1px solid #0a2030",borderRadius:20,padding:"3px 10px",fontSize:11}}>
+            <span style={{background:"rgba(20,0,0,0.5)",color:daysUntilDelivery!==null&&daysUntilDelivery<0?"#ff5555":daysUntilDelivery===0?"#ffbb33":daysUntilDelivery<=2?"#88dd44":"#2a6a9a",border:"1px solid #1a1a1a",borderRadius:20,padding:"3px 10px",fontSize:11}}>
               📅 {fmtDateShort(o.deliveryDate)}{daysUntilDelivery!==null&&daysUntilDelivery>=0?` (${daysUntilDelivery}d)`:""}
             </span>
           )}
           {/* Payment */}
-          <span style={{background:"rgba(0,20,40,0.6)",border:"1px solid #0a1a2a",color:"#2a6a8a",borderRadius:20,padding:"3px 10px",fontSize:10}}>{o.paymentMethod||"COD"}</span>
+          <span style={{background:"rgba(20,0,0,0.4)",border:"1px solid #1a1a1a",color:"#664444",borderRadius:20,padding:"3px 10px",fontSize:10}}>{o.paymentMethod||"COD"}</span>
           {/* Delivery fee status */}
           {dc>0&&(
             <span style={{background:o.deliveryPaid?"rgba(0,80,30,0.3)":"rgba(80,0,0,0.3)",color:o.deliveryPaid?"#44cc66":"#cc4444",border:`1px solid ${o.deliveryPaid?"#003320":"#330000"}`,borderRadius:20,padding:"3px 10px",fontSize:10,fontWeight:"bold"}}>
@@ -696,7 +806,7 @@ function StaffOrderCard({order:o,expanded,onToggle,onToggleDelivery}){
               <thead>
                 <tr style={{background:"rgba(0,60,100,0.3)"}}>
                   {["ITEM","QTY","RATE","AMOUNT"].map((h,i)=>(
-                    <th key={h} style={{padding:"8px 12px",textAlign:i===0?"left":"right",color:"#2a6a8a",letterSpacing:1,fontWeight:"bold",borderBottom:"1px solid #0a2030"}}>{h}</th>
+                    <th key={h} style={{padding:"8px 12px",textAlign:i===0?"left":"right",color:"#884444",letterSpacing:1,fontWeight:"bold",borderBottom:"1px solid #1a1a1a"}}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -704,17 +814,17 @@ function StaffOrderCard({order:o,expanded,onToggle,onToggleDelivery}){
                 {o.products.map((p,i)=>(
                   <tr key={p.id} style={{background:i%2===0?"rgba(0,10,25,0.5)":"rgba(0,5,15,0.3)",borderBottom:"1px solid #050f18"}}>
                     <td style={{padding:"8px 12px",color:"#aaccdd",fontWeight:"bold"}}>{p.name||"—"}</td>
-                    <td style={{padding:"8px 12px",color:"#3a6a8a",textAlign:"right"}}>{p.qty||"—"}</td>
-                    <td style={{padding:"8px 12px",color:"#3a6a8a",textAlign:"right"}}>{p.unitPrice?`BDT ${parseFloat(p.unitPrice).toFixed(2)}`:"—"}</td>
+                    <td style={{padding:"8px 12px",color:"#774444",textAlign:"right"}}>{p.qty||"—"}</td>
+                    <td style={{padding:"8px 12px",color:"#774444",textAlign:"right"}}>{p.unitPrice?`BDT ${parseFloat(p.unitPrice).toFixed(2)}`:"—"}</td>
                     <td style={{padding:"8px 12px",color:"#99ccdd",textAlign:"right",fontWeight:"bold"}}>{tk(productTotal(p))}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 {dc>0&&!o.deliveryPaid&&(
-                  <tr style={{background:"rgba(0,10,20,0.5)"}}>
-                    <td colSpan={3} style={{padding:"7px 12px",color:"#2a5a7a",fontStyle:"italic"}}>🚚 Delivery Fee</td>
-                    <td style={{padding:"7px 12px",color:"#3a6a8a",textAlign:"right"}}>{tk(dc)}</td>
+                  <tr style={{background:"rgba(20,0,0,0.3)"}}>
+                    <td colSpan={3} style={{padding:"7px 12px",color:"#664444",fontStyle:"italic"}}>🚚 Delivery Fee</td>
+                    <td style={{padding:"7px 12px",color:"#774444",textAlign:"right"}}>{tk(dc)}</td>
                   </tr>
                 )}
                 <tr style={{background:"rgba(0,80,150,0.15)"}}>
@@ -757,17 +867,21 @@ function StaffOrderCard({order:o,expanded,onToggle,onToggleDelivery}){
               return(
                 <React.Fragment key={s}>
                   <div style={{display:"flex",flexDirection:"column",alignItems:"center",flex:1}}>
-                    <div style={{width:28,height:28,borderRadius:"50%",background:active?sc.badge:"rgba(0,10,20,0.5)",border:`2px solid ${active?sc.border:"#0a1a2a"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:active?sc.text:"#1a3a4a",fontWeight:"bold",boxShadow:current?`0 0 10px ${sc.border}`:"none",transition:"all 0.3s"}}>
+                    <div style={{width:28,height:28,borderRadius:"50%",background:active?sc.badge:"rgba(20,0,0,0.3)",border:`2px solid ${active?sc.border:"#1a1a1a"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:active?sc.text:"#4a1a1a",fontWeight:"bold",boxShadow:current?`0 0 10px ${sc.border}`:"none",transition:"all 0.3s"}}>
                       {active?"✓":i+1}
                     </div>
-                    <div style={{fontSize:9,color:active?sc.text:"#1a3a4a",marginTop:4,letterSpacing:0.5,textAlign:"center"}}>{s.toUpperCase()}</div>
+                    <div style={{fontSize:9,color:active?sc.text:"#4a1a1a",marginTop:4,letterSpacing:0.5,textAlign:"center"}}>{s.toUpperCase()}</div>
                   </div>
                   {i<STATUS_FLOW.length-1&&(
-                    <div style={{flex:1,height:2,background:STATUS_FLOW.indexOf(o.status)>i?"rgba(0,150,255,0.3)":"rgba(0,20,40,0.5)",marginBottom:18,transition:"background 0.3s"}}/>
+                    <div style={{flex:1,height:2,background:STATUS_FLOW.indexOf(o.status)>i?"rgba(204,0,0,0.4)":"rgba(40,0,0,0.4)",marginBottom:18,transition:"background 0.3s"}}/>
                   )}
                 </React.Fragment>
               );
             })}
+          </div>
+          {/* Steadfast */}
+          <div style={{marginTop:12}}>
+            <SteadfastButton order={o} grandTotal={grandTotal}/>
           </div>
         </div>
       )}
@@ -1173,8 +1287,8 @@ function SteadfastButton({order:o,grandTotal}){
 
   if(status==="setup"||(!proxyUrl&&status!=="ok")){
     return(
-      <div style={{background:"#0a1a2a",border:"1px solid #003366",borderRadius:8,padding:"10px 12px",marginBottom:8,fontSize:12}}>
-        <div style={{color:"#55aaff",fontWeight:"bold",marginBottom:6}}>⚙️ One-time Steadfast Setup</div>
+      <div style={{background:"#111",border:"1px solid #330000",borderRadius:8,padding:"10px 12px",marginBottom:8,fontSize:12}}>
+        <div style={{color:"#cc0000",fontWeight:"bold",marginBottom:6}}>⚙️ One-time Steadfast Setup</div>
         <div style={{color:"#aaa",marginBottom:8,lineHeight:1.5}}>
           Browsers block direct API calls (CORS). You need a free Cloudflare Worker proxy.<br/>
           <b style={{color:"#fff"}}>Steps:</b><br/>
@@ -1185,8 +1299,8 @@ function SteadfastButton({order:o,grandTotal}){
         <div style={{display:"flex",gap:6}}>
           <input value={inputUrl} onChange={e=>setInputUrl(e.target.value)}
             placeholder="https://your-worker.workers.dev"
-            style={{flex:1,background:"#0d0d0d",border:"1px solid #003366",borderRadius:4,padding:"5px 8px",color:"#eee",fontSize:12,outline:"none"}}/>
-          <button onClick={save} style={bS("#003366","#55aaff",12,"#0055aa")}>Save</button>
+            style={{flex:1,background:"#0d0d0d",border:"1px solid #330000",borderRadius:4,padding:"5px 8px",color:"#eee",fontSize:12,outline:"none"}}/>
+          <button onClick={save} style={bS("#330000","#cc0000",12,"#550000")}>Save</button>
           {proxyUrl&&<button onClick={()=>setStatus(null)} style={bS("#1a1a1a","#666",12,"#333")}>Cancel</button>}
         </div>
       </div>
@@ -1198,7 +1312,7 @@ function SteadfastButton({order:o,grandTotal}){
       {status==="ok"
         ?<div style={{background:"#0a2a0a",border:"1px solid #005500",borderRadius:6,padding:"7px 12px",fontSize:12,color:"#44cc44"}}>✅ {msg}</div>
         :<div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-          <button onClick={send} disabled={status==="loading"} style={{...bS("#001a33","#55aaff",12,"#003366"),opacity:status==="loading"?0.6:1,cursor:status==="loading"?"wait":"pointer"}}>
+          <button onClick={send} disabled={status==="loading"} style={{...bS("#1a0000","#cc0000",12,"#330000"),opacity:status==="loading"?0.6:1,cursor:status==="loading"?"wait":"pointer"}}>
             {status==="loading"?"⏳ Sending…":"🚚 Send to Steadfast"}
           </button>
           <button onClick={()=>{setStatus("setup");setInputUrl(proxyUrl);}} title="Change worker URL" style={{background:"none",border:"none",color:"#333",cursor:"pointer",fontSize:14,padding:"2px 4px"}}>⚙</button>
@@ -1572,7 +1686,7 @@ function PnlView({data,allOrders,from,to,onFromChange,onToChange,onPrintOrder}){
           <div style={{position:"relative"}}><input type="text" readOnly value={from?from.split("-").reverse().join("/"):""} style={{...iS({width:130}),cursor:"pointer"}}/><input type="date" value={from} onChange={e=>onFromChange(e.target.value)} style={{position:"absolute",inset:0,opacity:0,width:"100%",cursor:"pointer"}}/></div>
           <label style={{fontWeight:"bold",color:"#aaa",fontSize:13}}>To:</label>
           <div style={{position:"relative"}}><input type="text" readOnly value={to?to.split("-").reverse().join("/"):""} style={{...iS({width:130}),cursor:"pointer"}}/><input type="date" value={to} onChange={e=>onToChange(e.target.value)} style={{position:"absolute",inset:0,opacity:0,width:"100%",cursor:"pointer"}}/></div>
-          <span style={{color:"#444",fontSize:12}}>Delivered orders only</span>
+          <span style={{color:"#664444",fontSize:12}}>Delivered orders only</span>
         </div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
           {[["thisMonth","This Month"],["lastMonth","Last Month"],["thisYear","This Year"],["allTime","All Time"]].map(([k,l])=>(
@@ -1588,7 +1702,7 @@ function PnlView({data,allOrders,from,to,onFromChange,onToChange,onPrintOrder}){
         <SCard label="Grand Total" value={tk(data.total)}     color="#cc0000"/>
       </div>
       {allOrders.length===0
-        ?<div style={{textAlign:"center",color:"#333",marginTop:40}}>No delivered orders for this period.</div>
+        ?<div style={{textAlign:"center",color:"#554444",marginTop:40}}>No delivered orders for this period.</div>
         :<MonthlyFolders orders={allOrders} onPrintOrder={onPrintOrder}/>}
     </div>
   );
@@ -1777,14 +1891,96 @@ function MonthlyFolders({orders,onPrintOrder}){
 function DevView(){
   const url="https://damp-frost-0a6e.posterlagai.workers.dev";
   const[copied,setCopied]=React.useState(false);
+  const[showAdmin,setShowAdmin]=React.useState(false);
+  const[adminStep,setAdminStep]=React.useState(1); // 1=verify, 2=change
+  const[adminPin,setAdminPin]=React.useState("");
+  const[adminErr,setAdminErr]=React.useState("");
+  const[changing,setChanging]=React.useState(null); // "owner" | "staff"
+  const[step2Pin,setStep2Pin]=React.useState("");
+  const[step2Confirm,setStep2Confirm]=React.useState("");
+  const[step2Err,setStep2Err]=React.useState("");
+  const[step2Ok,setStep2Ok]=React.useState("");
+
   const copy=()=>{navigator.clipboard.writeText(url).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);});};
+
+  const verifyAdmin=()=>{
+    const ownerPin=localStorage.getItem("pin_owner")||"4321";
+    if(adminPin===ownerPin){setAdminStep(2);setAdminErr("");}
+    else{setAdminErr("Wrong Owner PIN");setAdminPin("");}
+  };
+
+  const savePin=(role)=>{
+    if(step2Pin.length!==4){setStep2Err("PIN must be 4 digits");return;}
+    if(step2Pin!==step2Confirm){setStep2Err("PINs don't match");return;}
+    localStorage.setItem(`pin_${role}`,step2Pin);
+    setStep2Ok(`${role==="owner"?"Owner":"Staff"} PIN updated!`);
+    setStep2Pin("");setStep2Confirm("");setStep2Err("");setChanging(null);
+    setTimeout(()=>setStep2Ok(""),3000);
+  };
+
+  const resetAdmin=()=>{setShowAdmin(false);setAdminStep(1);setAdminPin("");setAdminErr("");setChanging(null);setStep2Pin("");setStep2Confirm("");setStep2Err("");setStep2Ok("");};
+
   return(
     <div style={{maxWidth:600,margin:"40px auto"}}>
+      {/* Worker URL */}
       <div style={{fontWeight:"bold",fontSize:16,color:"#aaa",marginBottom:16}}>⚙ Cloudflare Worker URL</div>
-      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+      <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:24}}>
         <div style={{flex:1,background:"#111",border:"1px solid #222",borderRadius:8,padding:"12px 16px",fontSize:13,color:"#44cc44",fontFamily:"monospace",wordBreak:"break-all"}}>{url}</div>
         <button onClick={copy} style={{...bS(copied?"#0a2a0a":"#1a1a1a",copied?"#44cc44":"#aaa",13,copied?"#1a4a1a":"#333"),whiteSpace:"nowrap",minWidth:80}}>{copied?"✓ Copied":"Copy"}</button>
       </div>
+
+      {/* Admin section */}
+      {!showAdmin
+        ?<button onClick={()=>setShowAdmin(true)} style={{...bS("#1a1a1a","#cc0000",13,"#cc0000"),width:"100%",padding:"12px"}}>🔐 Admin</button>
+        :<div style={{background:"#111",border:"1px solid #222",borderRadius:10,padding:20}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <div style={{fontWeight:"bold",color:"#cc0000",fontSize:14}}>🔐 Admin Panel</div>
+            <button onClick={resetAdmin} style={{background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:18}}>✕</button>
+          </div>
+
+          {/* Step 1 — verify owner PIN */}
+          {adminStep===1&&(
+            <div>
+              <div style={{color:"#888",fontSize:13,marginBottom:12}}>Step 1 of 2 — Enter your Owner PIN to continue</div>
+              <div style={{display:"flex",gap:8}}>
+                <input type="password" maxLength={4} value={adminPin} onChange={e=>setAdminPin(e.target.value.replace(/\D/g,""))}
+                  placeholder="Owner PIN" style={{...iS({flex:1}),letterSpacing:6,textAlign:"center",fontSize:18}}/>
+                <button onClick={verifyAdmin} style={bS("#cc0000","#fff",13)}>Verify →</button>
+              </div>
+              {adminErr&&<div style={{color:"#ff4444",fontSize:12,marginTop:8}}>⚠ {adminErr}</div>}
+            </div>
+          )}
+
+          {/* Step 2 — choose which PIN to change */}
+          {adminStep===2&&(
+            <div>
+              <div style={{color:"#44cc44",fontSize:12,marginBottom:16}}>✓ Verified — Step 2 of 2</div>
+              {step2Ok&&<div style={{color:"#44cc44",fontSize:13,marginBottom:12,background:"#0a2a0a",border:"1px solid #1a4a1a",borderRadius:6,padding:"8px 12px"}}>✅ {step2Ok}</div>}
+              {!changing?(
+                <div style={{display:"flex",gap:10}}>
+                  <button onClick={()=>setChanging("owner")} style={{...bS("#1a1a1a","#cc0000",13,"#cc0000"),flex:1,padding:"12px"}}>Change Owner PIN</button>
+                  <button onClick={()=>setChanging("staff")} style={{...bS("#1a1a1a","#cc0000",13,"#330000"),flex:1,padding:"12px"}}>Change Staff PIN</button>
+                </div>
+              ):(
+                <div>
+                  <div style={{color:"#aaa",fontSize:13,marginBottom:12}}>New {changing==="owner"?"Owner":"Staff"} PIN</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                    <input type="password" maxLength={4} value={step2Pin} onChange={e=>setStep2Pin(e.target.value.replace(/\D/g,""))}
+                      placeholder="New 4-digit PIN" style={{...iS(),letterSpacing:6,textAlign:"center",fontSize:18}}/>
+                    <input type="password" maxLength={4} value={step2Confirm} onChange={e=>setStep2Confirm(e.target.value.replace(/\D/g,""))}
+                      placeholder="Confirm PIN" style={{...iS(),letterSpacing:6,textAlign:"center",fontSize:18}}/>
+                    {step2Err&&<div style={{color:"#ff4444",fontSize:12}}>⚠ {step2Err}</div>}
+                    <div style={{display:"flex",gap:8}}>
+                      <button onClick={()=>setChanging(null)} style={{...bS("#1a1a1a","#666",13,"#333"),flex:1}}>← Back</button>
+                      <button onClick={()=>savePin(changing)} style={{...bS("#cc0000","#fff",13),flex:1}}>Save PIN</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      }
     </div>
   );
 }
