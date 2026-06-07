@@ -974,6 +974,7 @@ function App(){
           <NavBtn label="📦 Orders"   active={view==="orders"}   onClick={()=>navToView("orders")}/>
           <NavBtn label="💸 Expenses" active={view==="expenses"} onClick={()=>navToView("expenses")}/>
           <NavBtn label="📊 P&L"      active={view==="pnl"}      onClick={()=>navToView("pnl")}/>
+          <NavBtn label="⚙ Dev" active={view==="dev"} onClick={()=>navToView("dev")}/>
           <span style={{fontSize:12,background:"#1a1a1a",border:"1px solid #cc0000",padding:"4px 10px",borderRadius:20,color:"#cc0000"}}>{user.label} ✓</span>
           <button onClick={()=>setUser(null)} style={bS("#1a1a1a","#aaa",11,"#444")}>Lock</button>
         </div>
@@ -1016,6 +1017,7 @@ function App(){
         )}
         {view==="expenses"&&<ExpenseTracker canEdit={true}/>}
         {view==="pnl"&&<PnlView data={pnlData} allOrders={orders.filter(o=>o.status==="Delivered")} from={pnlFrom} to={pnlTo} onFromChange={setPnlFrom} onToChange={setPnlTo} onPrintOrder={(o)=>navToPrint(o)}/>}
+        {view==="dev"&&<DevView/>}
       </div>
 
       {showForm&&draft&&(
@@ -1152,6 +1154,7 @@ function SteadfastButton({order:o,grandTotal}){
           recipient_address:o.address,
           cod_amount:Math.round(grandTotal),
           note:o.notes||"",
+          weight:0.5,
         }),
       });
       const data=await res.json();
@@ -1766,6 +1769,22 @@ function MonthlyFolders({orders,onPrintOrder}){
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ── DEV VIEW ─────────────────────────────────────────────────────────────────
+function DevView(){
+  const url="https://damp-frost-0a6e.posterlagai.workers.dev";
+  const[copied,setCopied]=React.useState(false);
+  const copy=()=>{navigator.clipboard.writeText(url).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);});};
+  return(
+    <div style={{maxWidth:600,margin:"40px auto"}}>
+      <div style={{fontWeight:"bold",fontSize:16,color:"#aaa",marginBottom:16}}>⚙ Cloudflare Worker URL</div>
+      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+        <div style={{flex:1,background:"#111",border:"1px solid #222",borderRadius:8,padding:"12px 16px",fontSize:13,color:"#44cc44",fontFamily:"monospace",wordBreak:"break-all"}}>{url}</div>
+        <button onClick={copy} style={{...bS(copied?"#0a2a0a":"#1a1a1a",copied?"#44cc44":"#aaa",13,copied?"#1a4a1a":"#333"),whiteSpace:"nowrap",minWidth:80}}>{copied?"✓ Copied":"Copy"}</button>
+      </div>
     </div>
   );
 }
