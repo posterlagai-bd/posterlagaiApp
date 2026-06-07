@@ -397,9 +397,9 @@ function StaffPnlView({data,from,to,onFromChange,onToChange}){
       <div style={{background:"#111",border:"1px solid #1e1e1e",borderRadius:10,padding:"14px 16px",marginBottom:18}}>
         <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:10}}>
           <label style={{fontWeight:"bold",color:"#aaa",fontSize:13}}>From:</label>
-          <input type="date" value={from} onChange={e=>onFromChange(e.target.value)} style={iS({width:160})}/>
+          <div style={{position:"relative"}}><input type="text" readOnly value={from?from.split("-").reverse().join("/"):""} style={{...iS({width:130}),cursor:"pointer"}}/><input type="date" value={from} onChange={e=>onFromChange(e.target.value)} style={{position:"absolute",inset:0,opacity:0,width:"100%",cursor:"pointer"}}/></div>
           <label style={{fontWeight:"bold",color:"#aaa",fontSize:13}}>To:</label>
-          <input type="date" value={to} onChange={e=>onToChange(e.target.value)} style={iS({width:160})}/>
+          <div style={{position:"relative"}}><input type="text" readOnly value={to?to.split("-").reverse().join("/"):""} style={{...iS({width:130}),cursor:"pointer"}}/><input type="date" value={to} onChange={e=>onToChange(e.target.value)} style={{position:"absolute",inset:0,opacity:0,width:"100%",cursor:"pointer"}}/></div>
           <span style={{color:"#444",fontSize:12}}>Delivered orders only</span>
         </div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -1431,9 +1431,9 @@ function PnlView({data,allOrders,from,to,onFromChange,onToChange,onPrintOrder}){
       <div style={{background:"#111",border:"1px solid #1e1e1e",borderRadius:10,padding:"14px 16px",marginBottom:18}}>
         <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:10}}>
           <label style={{fontWeight:"bold",color:"#aaa",fontSize:13}}>From:</label>
-          <input type="date" value={from} onChange={e=>onFromChange(e.target.value)} style={iS({width:160})}/>
+          <div style={{position:"relative"}}><input type="text" readOnly value={from?from.split("-").reverse().join("/"):""} style={{...iS({width:130}),cursor:"pointer"}}/><input type="date" value={from} onChange={e=>onFromChange(e.target.value)} style={{position:"absolute",inset:0,opacity:0,width:"100%",cursor:"pointer"}}/></div>
           <label style={{fontWeight:"bold",color:"#aaa",fontSize:13}}>To:</label>
-          <input type="date" value={to} onChange={e=>onToChange(e.target.value)} style={iS({width:160})}/>
+          <div style={{position:"relative"}}><input type="text" readOnly value={to?to.split("-").reverse().join("/"):""} style={{...iS({width:130}),cursor:"pointer"}}/><input type="date" value={to} onChange={e=>onToChange(e.target.value)} style={{position:"absolute",inset:0,opacity:0,width:"100%",cursor:"pointer"}}/></div>
           <span style={{color:"#444",fontSize:12}}>Delivered orders only</span>
         </div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -1457,7 +1457,8 @@ function PnlView({data,allOrders,from,to,onFromChange,onToChange,onPrintOrder}){
 }
 
 function MonthlyFolders({orders,onPrintOrder}){
-  const[openMonth,setOpenMonth]=React.useState(null);
+  const[openMonths,setOpenMonths]=React.useState({});
+  const toggleMonth=(key)=>setOpenMonths(prev=>({...prev,[key]:!prev[key]}));
   const MONTH_NAMES=["January","February","March","April","May","June","July","August","September","October","November","December"];
 
   // Group orders by year-month
@@ -1550,7 +1551,7 @@ function MonthlyFolders({orders,onPrintOrder}){
   return(
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
       {grouped.map(([key,ords])=>{
-        const isOpen=openMonth===key;
+        const isOpen=!!openMonths[key];
         const stats=monthStats(ords);
         const sorted=ords.slice().sort((a,b)=>{
           const ai=parseInt((a.invoiceNum||"").replace(/\D/g,""))||0;
@@ -1560,8 +1561,8 @@ function MonthlyFolders({orders,onPrintOrder}){
         return(
           <div key={key} style={{borderRadius:10,overflow:"hidden",border:"1px solid #2a2a2a",display:"flex",flexDirection:"column"}}>
             {/* Red top bar */}
-            <div onClick={()=>setOpenMonth(isOpen?null:key)} style={{background:"#cc0000",padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <span style={{fontWeight:"bold",fontSize:14,color:"#fff",letterSpacing:0.5}}>📁 {monthLabel(key)}</span>
+            <div onClick={()=>toggleMonth(key)} style={{background:"#cc0000",padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontWeight:"bold",fontSize:14,color:"#fff",letterSpacing:0.5}}>📅 {monthLabel(key)}</span>
               <span style={{background:"rgba(0,0,0,0.25)",color:"#ffcccc",borderRadius:20,padding:"2px 9px",fontSize:11,fontWeight:"bold"}}>{ords.length} orders</span>
             </div>
             {/* Black body with stats */}
@@ -1585,7 +1586,7 @@ function MonthlyFolders({orders,onPrintOrder}){
             </div>
             {/* Dark bottom bar */}
             <div style={{background:"#1a1a1a",padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:"1px solid #2a2a2a"}}>
-              <span onClick={()=>setOpenMonth(isOpen?null:key)} style={{color:"#555",fontSize:12,cursor:"pointer",userSelect:"none"}}>{isOpen?"▲ Hide orders":"▼ View orders"}</span>
+              <span onClick={()=>toggleMonth(key)} style={{color:"#555",fontSize:12,cursor:"pointer",userSelect:"none"}}>{isOpen?"▲ Hide orders":"▼ View orders"}</span>
               <button onClick={e=>{e.stopPropagation();downloadMonthPDF(key,ords);}} style={{...bS("#cc0000","#fff",11),padding:"5px 12px"}}>⬇ PDF</button>
             </div>
             {/* Orders expanded below - full width */}
