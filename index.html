@@ -984,13 +984,21 @@ function OrderCard({order:o,onUpdate,onAdvance,onEdit,onPrint,onDeleteRequest}){
 const SF_PROXY_URL = localStorage.getItem("sf_proxy_url") || "";
 
 function SteadfastButton({order:o,grandTotal,onUpdate}){
-  // If order already has steadfast consignment saved, treat as already booked
-  const saved=o.steadfastConsignment||null;
-  const[status,setStatus]=useState(saved?"ok":null); // null | "loading" | "ok" | "err" | "setup"
+  // Always derive booked state from the order prop so it survives collapse/expand
+  const isBooked=!!(o.steadfastConsignment&&(o.steadfastConsignment.trackingCode||o.steadfastConsignment.parcelId));
+  const[status,setStatus]=useState(isBooked?"ok":null); // null | "loading" | "ok" | "err" | "setup"
   const[errMsg,setErrMsg]=useState("");
   const[proxyUrl,setProxyUrl]=useState(SF_PROXY_URL);
   const[inputUrl,setInputUrl]=useState(SF_PROXY_URL);
-  const[consignment,setConsignment]=useState(saved||null); // {trackingCode, parcelId}
+  const[consignment,setConsignment]=useState(o.steadfastConsignment||null); // {trackingCode, parcelId}
+
+  // Sync with prop changes (e.g. Firestore update arrives after booking)
+  useEffect(()=>{
+    if(o.steadfastConsignment&&(o.steadfastConsignment.trackingCode||o.steadfastConsignment.parcelId)){
+      setConsignment(o.steadfastConsignment);
+      setStatus("ok");
+    }
+  },[o.steadfastConsignment]);
 
   const saveProxy=()=>{
     const url=inputUrl.trim().replace(/\/$/,"");
