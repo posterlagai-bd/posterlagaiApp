@@ -412,7 +412,7 @@ function StaffPnlView({data,from,to,onFromChange,onToChange}){
         <SCard label="Revenue"     value={tk(data.revenue)}   color="#4488ff"/>
         <SCard label="Total Cost"  value={tk(data.totalCost)} color="#ff6666"/>
         <SCard label="Profit"      value={tk(data.profit)}    color={data.profit>=0?"#44cc44":"#cc4444"}/>
-        <SCard label="Delivery"    value={tk(data.delivery)}  color="#aaa"/>
+        <SCard label="Courier Cost" value={tk(data.delivery)}  color="#aaa"/>
         <SCard label="Grand Total" value={tk(data.total)}     color="#cc0000"/>
       </div>
       {data.orders.length===0
@@ -862,7 +862,7 @@ function App(){
       return d>=pnlFrom&&d<=pnlTo;
     });
     const revenue=mo.reduce((s,o)=>s+orderRevenue(o.products),0);
-    const delivery=mo.reduce((s,o)=>s+(parseFloat(o.deliveryCharge)||0),0);
+    const delivery=mo.reduce((s,o)=>s+(parseFloat(o.actualDC)||parseFloat(o.deliveryCharge)||0),0);
     const totalCost=mo.reduce((s,o)=>s+orderCost(o.products),0);
     const profit=mo.reduce((s,o)=>s+orderProfit(o.products,o.deliveryCharge,o.deliveryPaid,o.actualDC),0);
     const grandTotal=mo.reduce((s,o)=>{const rev=orderRevenue(o.products);const dc=parseFloat(o.deliveryCharge)||0;return s+(o.deliveryPaid?rev:rev+dc);},0);
@@ -1440,7 +1440,7 @@ function PnlView({data,from,to,onFromChange,onToChange,onPrintOrder}){
         <SCard label="Revenue"     value={tk(data.revenue)}   color="#4488ff"/>
         <SCard label="Total Cost"  value={tk(data.totalCost)} color="#ff6666"/>
         <SCard label="Profit"      value={tk(data.profit)}    color={data.profit>=0?"#44cc44":"#cc4444"}/>
-        <SCard label="Delivery"    value={tk(data.delivery)}  color="#aaa"/>
+        <SCard label="Courier Cost" value={tk(data.delivery)}  color="#aaa"/>
         <SCard label="Grand Total" value={tk(data.total)}     color="#cc0000"/>
       </div>
       {data.orders.length===0
