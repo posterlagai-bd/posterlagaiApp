@@ -1549,7 +1549,7 @@ function MonthlyFolders({orders,onPrintOrder}){
   };
 
   return(
-    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
+    <div style={{display:"flex",flexWrap:"wrap",gap:16,alignItems:"flex-start"}}>
       {grouped.map(([key,ords])=>{
         const isOpen=!!openMonths[key];
         const stats=monthStats(ords);
@@ -1559,7 +1559,7 @@ function MonthlyFolders({orders,onPrintOrder}){
           return bi-ai;
         });
         return(
-          <div key={key} style={{borderRadius:10,overflow:"hidden",border:"1px solid #2a2a2a",display:"flex",flexDirection:"column"}}>
+          <div key={key} style={{borderRadius:10,overflow:"hidden",border:"1px solid #2a2a2a",display:"flex",flexDirection:"column",width:"calc(20% - 13px)",minWidth:200,boxSizing:"border-box"}}>
             {/* Red top bar */}
             <div onClick={()=>toggleMonth(key)} style={{background:"#cc0000",padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <span style={{fontWeight:"bold",fontSize:14,color:"#fff",letterSpacing:0.5}}>📅 {monthLabel(key)}</span>
@@ -1591,7 +1591,7 @@ function MonthlyFolders({orders,onPrintOrder}){
             </div>
             {/* Orders expanded below - full width */}
             {isOpen&&(
-              <div style={{gridColumn:"1/-1",padding:"12px",background:"#0d0d0d",borderTop:"1px solid #1e1e1e"}}>
+              <div style={{padding:"12px",background:"#0d0d0d",borderTop:"1px solid #1e1e1e"}}>
                 {sorted.map(o=>{
                   const rev=orderRevenue(o.products),dc=parseFloat(o.deliveryCharge)||0,grand=o.deliveryPaid?rev:rev+dc;
                   const cost=orderCost(o.products),profit=orderProfit(o.products,o.deliveryCharge,o.deliveryPaid,o.actualDC);
