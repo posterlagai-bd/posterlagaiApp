@@ -381,7 +381,7 @@ function RetroLoginScreen({onLogin}){
 }
 
 // ─── STAFF P&L VIEW (read-only, no invoice print) ────────────────────────────
-function StaffPnlView({data,from,to,onFromChange,onToChange,orders,onToggleDelivery}){
+function StaffPnlView({data,from,to,onFromChange,onToChange,orders,onToggleDelivery,onUpdate}){
   const setPreset=(preset)=>{
     const t=todayStr(),[y,m]=t.split("-");
     if(preset==="thisMonth"){onFromChange(`${y}-${m}-01`);onToChange(t);}
@@ -415,63 +415,15 @@ function StaffPnlView({data,from,to,onFromChange,onToChange,orders,onToggleDeliv
         <SCard label="Courier Cost" value={tk(data.delivery)}  color="#aaa"/>
         <SCard label="Grand Total" value={tk(data.total)}     color="#cc0000"/>
       </div>
-      {data.orders.length===0
-        ?<div style={{textAlign:"center",color:"#554444",marginTop:40}}>No delivered orders for this period.</div>
-        :data.orders.slice().sort((a,b)=>{
-            const ai=parseInt((a.invoiceNum||"").replace(/\D/g,""))||0;
-            const bi=parseInt((b.invoiceNum||"").replace(/\D/g,""))||0;
-            return bi-ai;
-          }).map(o=>{
-          const rev=orderRevenue(o.products),dc=parseFloat(o.deliveryCharge)||0,grand=o.deliveryPaid?rev:rev+dc;
-          return(
-            <div key={o.id} style={{background:"#111",border:"1px solid #1e1e1e",borderRadius:10,marginBottom:12,overflow:"hidden"}}>
-              <div style={{background:"#1a1a1a",padding:"8px 14px",display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:6,alignItems:"center"}}>
-                <span style={{fontWeight:"bold",color:"#fff"}}>#{o.seq} {o.clientName}</span>
-                <div style={{display:"flex",gap:10,alignItems:"center",fontSize:12,flexWrap:"wrap"}}>
-                  <span style={{color:"#666"}}>{o.paymentMethod}</span>
-                  {dc>0&&<span style={{color:o.deliveryPaid?"#44cc44":"#cc4444"}}>🚚 {tk(dc)} {o.deliveryPaid?"Paid":"Unpaid"}</span>}
-                  <span style={{color:"#cc0000",fontWeight:"bold"}}>Total: {tk(grand)}</span>
-                </div>
-              </div>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                <thead><tr style={{background:"#0d0d0d"}}>{["Item","Qty","Rate","Amount"].map(h=><th key={h} style={{padding:"6px 12px",textAlign:h==="Item"?"left":"right",color:"#555"}}>{h}</th>)}</tr></thead>
-                <tbody>{o.products.map((p,i)=>(
-                  <tr key={p.id} style={{background:i%2===0?"#111":"#0d0d0d",borderBottom:"1px solid #1a1a1a"}}>
-                    <td style={{padding:"6px 12px",color:"#fff",fontWeight:"bold"}}>{p.name||"—"}</td>
-                    <td style={{padding:"6px 12px",color:"#666",textAlign:"right"}}>{p.qty||"—"}</td>
-                    <td style={{padding:"6px 12px",color:"#666",textAlign:"right"}}>{p.unitPrice?tk(parseFloat(p.unitPrice)):"—"}</td>
-                    <td style={{padding:"6px 12px",color:"#fff",textAlign:"right"}}>{tk(productTotal(p))}</td>
-                  </tr>
-                ))}</tbody>
-                <tfoot>
-                  {dc>0&&!o.deliveryPaid&&<tr style={{background:"#0d0d0d"}}><td colSpan={3} style={{padding:"6px 12px",color:"#555"}}>Delivery</td><td style={{padding:"6px 12px",color:"#888",textAlign:"right"}}>{tk(dc)}</td></tr>}
-                  <tr style={{background:"#cc0000"}}><td colSpan={3} style={{padding:"7px 12px",color:"#fff",fontWeight:"bold"}}>Total</td><td style={{padding:"7px 12px",color:"#fff",fontWeight:"bold",textAlign:"right"}}>{tk(grand)}</td></tr>
-                </tfoot>
-              </table>
-            </div>
-          );
-        })}
-
-      {/* Monthly Folders box inside P&L */}
-      {orders&&orders.length>0&&(
-        <div style={{marginTop:28}}>
-          <div style={{background:"#111",border:"1px solid #1e1e1e",borderRadius:10,overflow:"hidden"}}>
-            <div style={{background:"#1a0000",borderBottom:"1px solid #2a1010",padding:"10px 16px",display:"flex",alignItems:"center",gap:8}}>
-              <span style={{fontSize:15}}>📅</span>
-              <span style={{fontWeight:"bold",fontSize:13,color:"#cc0000",letterSpacing:1}}>MONTHLY FOLDERS</span>
-            </div>
-            <div style={{padding:"14px 16px"}}>
-              <StaffMonthlyFolders orders={orders} onToggleDelivery={onToggleDelivery}/>
-            </div>
-          </div>
-        </div>
-      )}
+      {orders.filter(o=>o.status==="Delivered").length===0
+        ?<div style={{textAlign:"center",color:"#554444",marginTop:40}}>No delivered orders yet.</div>
+        :<MonthlyFolders orders={orders.filter(o=>o.status==="Delivered")} onPrintOrder={null}/>}
     </div>
   );
 }
 
 // ─── STAFF DASHBOARD ─────────────────────────────────────────────────────────
-function StaffDashboard({orders,onUpdateDeliveryPaid,onLock,pnlData,pnlFrom,pnlTo,onPnlFromChange,onPnlToChange}){
+function StaffDashboard({orders,onUpdateDeliveryPaid,onUpdate,onLock,pnlData,pnlFrom,pnlTo,onPnlFromChange,onPnlToChange}){
   const[filter,setFilter]=useState("All");
   const[filterUnpaidDC,setFilterUnpaidDC]=useState(false);
   const[search,setSearch]=useState("");
@@ -549,7 +501,8 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock,pnlData,pnlFrom,pnlT
         {visible.map(o=>(
           <StaffOrderCard key={o.id} order={o} expanded={expandedId===o.id}
             onToggle={()=>setExpandedId(expandedId===o.id?null:o.id)}
-            onToggleDelivery={()=>onUpdateDeliveryPaid(o.id,!o.deliveryPaid)}/>
+            onToggleDelivery={()=>onUpdateDeliveryPaid(o.id,!o.deliveryPaid)}
+            onUpdate={onUpdate}/>
         ))}
         </>)}
 
@@ -558,7 +511,7 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock,pnlData,pnlFrom,pnlT
         )}
 
         {staffTab==="pnl"&&(
-          <StaffPnlView data={pnlData} from={pnlFrom} to={pnlTo} onFromChange={onPnlFromChange} onToChange={onPnlToChange} orders={orders} onToggleDelivery={onUpdateDeliveryPaid}/>
+          <StaffPnlView data={pnlData} from={pnlFrom} to={pnlTo} onFromChange={onPnlFromChange} onToChange={onPnlToChange} orders={orders} onToggleDelivery={onUpdateDeliveryPaid} onUpdate={onUpdate}/>
         )}
 
       </div>
@@ -573,7 +526,7 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock,pnlData,pnlFrom,pnlT
 
 
 // ─── STAFF MONTHLY FOLDERS ───────────────────────────────────────────────────
-function StaffMonthlyFolders({orders,onToggleDelivery}){
+function StaffMonthlyFolders({orders,onToggleDelivery,onUpdate}){
   const[expandedId,setExpandedId]=React.useState(null);
   const MONTH_NAMES=["January","February","March","April","May","June","July","August","September","October","November","December"];
 
@@ -610,7 +563,8 @@ function StaffMonthlyFolders({orders,onToggleDelivery}){
             {sorted.map(o=>(
               <StaffOrderCard key={o.id} order={o} expanded={expandedId===o.id}
                 onToggle={()=>setExpandedId(expandedId===o.id?null:o.id)}
-                onToggleDelivery={()=>onToggleDelivery(o.id,!o.deliveryPaid)}/>
+                onToggleDelivery={()=>onToggleDelivery(o.id,!o.deliveryPaid)}
+                onUpdate={onUpdate}/>
             ))}
           </div>
         );
@@ -619,7 +573,7 @@ function StaffMonthlyFolders({orders,onToggleDelivery}){
   );
 }
 
-function StaffOrderCard({order:o,expanded,onToggle,onToggleDelivery}){
+function StaffOrderCard({order:o,expanded,onToggle,onToggleDelivery,onUpdate}){
   const sc=STATUS_COLOR[o.status];
   const isLate=o.deliveryDate&&o.deliveryDate<todayStr()&&o.status!=="Delivered";
   const printSoon=o.printDate&&o.printDate<=addDays(todayStr(),1)&&o.status==="Confirmed";
@@ -681,7 +635,7 @@ function StaffOrderCard({order:o,expanded,onToggle,onToggleDelivery}){
             </table>
           </div>
           {o.notes&&<div style={{fontSize:13,color:"#888",marginBottom:10,background:"#1a1a00",padding:"7px 10px",borderRadius:6,border:"1px solid #333300"}}>📝 {o.notes}</div>}
-          <SteadfastButton order={o} grandTotal={grandTotal}/>
+          <SteadfastButton order={o} grandTotal={grandTotal} onUpdate={onUpdate}/>
         </div>
       )}
     </div>
@@ -850,6 +804,7 @@ function App(){
       <StaffDashboard
         orders={orders}
         onUpdateDeliveryPaid={(id,paid)=>updateOrder(id,{deliveryPaid:paid})}
+        onUpdate={updateOrder}
         onLock={()=>setUser(null)}
         pnlData={pnlData}
         pnlFrom={pnlFrom}
@@ -1010,7 +965,7 @@ function OrderCard({order:o,onUpdate,onAdvance,onEdit,onPrint,onDeleteRequest}){
           </div>
           {o.notes&&<div style={{fontSize:13,color:"#888",marginBottom:10,background:"#1a1a00",padding:"7px 10px",borderRadius:6,border:"1px solid #333300"}}>📝 {o.notes}</div>}
           {o.history&&o.history.length>0&&<div style={{fontSize:12,color:"#444",marginBottom:12}}>{o.history.map((h,i)=><div key={i}>· {h}</div>)}</div>}
-          <SteadfastButton order={o} grandTotal={grandTotal}/>
+          <SteadfastButton order={o} grandTotal={grandTotal} onUpdate={onUpdate}/>
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
             <button onClick={onPrint} style={bS("#1a1a1a","#fff",12,"#cc0000")}>🖨️ Invoice</button>
             <button onClick={onEdit} style={bS("#1a1a1a","#fff",12,"#333")}>✏️ Edit</button>
@@ -1028,13 +983,16 @@ function OrderCard({order:o,onUpdate,onAdvance,onEdit,onPrint,onDeleteRequest}){
 // Cloudflare Worker proxy. Set your deployed worker URL below after setup.
 const SF_PROXY_URL = localStorage.getItem("sf_proxy_url") || "";
 
-function SteadfastButton({order:o,grandTotal}){
-  const[status,setStatus]=useState(null); // null | "loading" | "ok" | "err" | "setup"
-  const[msg,setMsg]=useState("");
+function SteadfastButton({order:o,grandTotal,onUpdate}){
+  // If order already has steadfast consignment saved, treat as already booked
+  const saved=o.steadfastConsignment||null;
+  const[status,setStatus]=useState(saved?"ok":null); // null | "loading" | "ok" | "err" | "setup"
+  const[errMsg,setErrMsg]=useState("");
   const[proxyUrl,setProxyUrl]=useState(SF_PROXY_URL);
   const[inputUrl,setInputUrl]=useState(SF_PROXY_URL);
+  const[consignment,setConsignment]=useState(saved||null); // {trackingCode, parcelId}
 
-  const save=()=>{
+  const saveProxy=()=>{
     const url=inputUrl.trim().replace(/\/$/,"");
     localStorage.setItem("sf_proxy_url",url);
     setProxyUrl(url);
@@ -1044,9 +1002,9 @@ function SteadfastButton({order:o,grandTotal}){
   const send=async()=>{
     if(!proxyUrl){setStatus("setup");return;}
     if(!o.clientName||!o.phone||!o.address){
-      setStatus("err");setMsg("Order needs name, phone & address first.");return;
+      setStatus("err");setErrMsg("Order needs name, phone & address first.");return;
     }
-    setStatus("loading");setMsg("");
+    setStatus("loading");setErrMsg("");
     try{
       const res=await fetch(proxyUrl,{
         method:"POST",
@@ -1064,21 +1022,26 @@ function SteadfastButton({order:o,grandTotal}){
       });
       const data=await res.json();
       if(res.ok&&(data.status===200||data.consignment)){
-        setStatus("ok");
         const c=data.consignment||{};
-        const tid=c.tracking_code||data.tracking_code||"";
-        const pid=c.id||c.consignment_id||data.consignment_id||"";
-        const parts=[];
-        if(pid)parts.push("Parcel ID: "+pid);
-        if(tid)parts.push("Tracking: "+tid);
-        setMsg(parts.length?"Booked! "+parts.join(" · "):"Booked successfully!");
+        const trackingCode=c.tracking_code||data.tracking_code||"";
+        const parcelId=c.id||c.consignment_id||data.consignment_id||"";
+        const info={trackingCode,parcelId,bookedAt:new Date().toISOString()};
+        setConsignment(info);
+        setStatus("ok");
+        // Persist to Firestore so it survives refresh
+        if(onUpdate)onUpdate(o.id,{steadfastConsignment:info});
       }else{
         setStatus("err");
-        setMsg(data.message||(typeof data.errors==="string"?data.errors:JSON.stringify(data.errors))||"Steadfast error.");
+        setErrMsg(data.message||(typeof data.errors==="string"?data.errors:JSON.stringify(data.errors))||"Steadfast error.");
       }
     }catch(e){
-      setStatus("err");setMsg("Network error: "+e.message);
+      setStatus("err");setErrMsg("Network error: "+e.message);
     }
+  };
+
+  const unbook=()=>{
+    setConsignment(null);setStatus(null);setErrMsg("");
+    if(onUpdate)onUpdate(o.id,{steadfastConsignment:null});
   };
 
   if(status==="setup"||(!proxyUrl&&status!=="ok")){
@@ -1096,7 +1059,7 @@ function SteadfastButton({order:o,grandTotal}){
           <input value={inputUrl} onChange={e=>setInputUrl(e.target.value)}
             placeholder="https://your-worker.workers.dev"
             style={{flex:1,background:"#0d0d0d",border:"1px solid #330000",borderRadius:4,padding:"5px 8px",color:"#eee",fontSize:12,outline:"none"}}/>
-          <button onClick={save} style={bS("#330000","#cc0000",12,"#550000")}>Save</button>
+          <button onClick={saveProxy} style={bS("#330000","#cc0000",12,"#550000")}>Save</button>
           {proxyUrl&&<button onClick={()=>setStatus(null)} style={bS("#1a1a1a","#666",12,"#333")}>Cancel</button>}
         </div>
       </div>
@@ -1105,14 +1068,26 @@ function SteadfastButton({order:o,grandTotal}){
 
   return(
     <div style={{marginBottom:8}}>
-      {status==="ok"
-        ?<div style={{background:"#0a2a0a",border:"1px solid #005500",borderRadius:6,padding:"7px 12px",fontSize:12,color:"#44cc44"}}>✅ {msg}</div>
+      {status==="ok"&&consignment
+        ?<div style={{background:"#0a2a0a",border:"1px solid #005500",borderRadius:6,padding:"8px 12px",fontSize:12,color:"#44cc44",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+          <span>✅ Booked on Steadfast</span>
+          {consignment.parcelId&&<span style={{color:"#aaa"}}>Parcel ID: <strong style={{color:"#fff"}}>{consignment.parcelId}</strong></span>}
+          {consignment.trackingCode&&(
+            <span style={{color:"#aaa"}}>Tracking: <a
+              href={`https://steadfast.com.bd/t/${consignment.trackingCode}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{color:"#55aaff",fontWeight:"bold",textDecoration:"underline"}}
+            >{consignment.trackingCode}</a></span>
+          )}
+          <button onClick={unbook} title="Mark as not booked" style={{marginLeft:"auto",...bS("#1a0000","#cc4444",11,"#330000"),padding:"3px 8px"}}>✕ Unbook</button>
+        </div>
         :<div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
           <button onClick={send} disabled={status==="loading"} style={{...bS("#1a0000","#cc0000",12,"#330000"),opacity:status==="loading"?0.6:1,cursor:status==="loading"?"wait":"pointer"}}>
             {status==="loading"?"⏳ Sending…":"🚚 Send to Steadfast"}
           </button>
           <button onClick={()=>{setStatus("setup");setInputUrl(proxyUrl);}} title="Change worker URL" style={{background:"none",border:"none",color:"#333",cursor:"pointer",fontSize:14,padding:"2px 4px"}}>⚙</button>
-          {status==="err"&&<span style={{fontSize:11,color:"#ff6666"}}>⚠ {msg}</span>}
+          {status==="err"&&<span style={{fontSize:11,color:"#ff6666"}}>⚠ {errMsg}</span>}
         </div>
       }
     </div>
@@ -1653,7 +1628,7 @@ function MonthlyFolders({orders,onPrintOrder}){
                           <span style={{color:profit>=0?"#44cc44":"#cc4444"}}>Profit: {tk(profit)}</span>
                           {dc>0&&<span style={{color:o.deliveryPaid?"#44cc44":"#cc4444"}}>🚚 {tk(dc)} {o.deliveryPaid?"Paid":"Unpaid"}</span>}
                           <span style={{color:"#cc0000",fontWeight:"bold"}}>Total: {tk(grand)}</span>
-                          <button onClick={()=>onPrintOrder(o)} style={bS("#1a1a1a","#fff",11,"#333")}>🖨️ Invoice</button>
+                          {onPrintOrder&&<button onClick={()=>onPrintOrder(o)} style={bS("#1a1a1a","#fff",11,"#333")}>🖨️ Invoice</button>}
                         </div>
                       </div>
                       <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
