@@ -381,7 +381,7 @@ function RetroLoginScreen({onLogin}){
 }
 
 // ─── STAFF P&L VIEW (read-only, no invoice print) ────────────────────────────
-function StaffPnlView({data,from,to,onFromChange,onToChange}){
+function StaffPnlView({data,from,to,onFromChange,onToChange,orders,onToggleDelivery}){
   const setPreset=(preset)=>{
     const t=todayStr(),[y,m]=t.split("-");
     if(preset==="thisMonth"){onFromChange(`${y}-${m}-01`);onToChange(t);}
@@ -451,6 +451,21 @@ function StaffPnlView({data,from,to,onFromChange,onToChange}){
             </div>
           );
         })}
+
+      {/* Monthly Folders box inside P&L */}
+      {orders&&orders.length>0&&(
+        <div style={{marginTop:28}}>
+          <div style={{background:"#111",border:"1px solid #1e1e1e",borderRadius:10,overflow:"hidden"}}>
+            <div style={{background:"#1a0000",borderBottom:"1px solid #2a1010",padding:"10px 16px",display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:15}}>📅</span>
+              <span style={{fontWeight:"bold",fontSize:13,color:"#cc0000",letterSpacing:1}}>MONTHLY FOLDERS</span>
+            </div>
+            <div style={{padding:"14px 16px"}}>
+              <StaffMonthlyFolders orders={orders} onToggleDelivery={onToggleDelivery}/>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -499,7 +514,6 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock,pnlData,pnlFrom,pnlT
             <button onClick={()=>setStaffTab("orders")} style={{background:staffTab==="orders"?"#1a0000":"rgba(20,0,0,0.6)",color:staffTab==="orders"?"#cc0000":"#554444",border:`1px solid ${staffTab==="orders"?"#cc0000":"#2a1010"}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontWeight:"bold"}}>📦 Orders</button>
             <button onClick={()=>setStaffTab("expenses")} style={{background:staffTab==="expenses"?"#1a0a00":"rgba(20,0,0,0.6)",color:staffTab==="expenses"?"#ffaa44":"#554444",border:`1px solid ${staffTab==="expenses"?"#804020":"#2a1010"}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontWeight:"bold"}}>💸 Expenses</button>
             <button onClick={()=>setStaffTab("pnl")} style={{background:staffTab==="pnl"?"#1a001a":"rgba(20,0,0,0.6)",color:staffTab==="pnl"?"#cc88ff":"#554444",border:`1px solid ${staffTab==="pnl"?"#550088":"#2a1010"}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontWeight:"bold"}}>📊 P&L</button>
-            <button onClick={()=>setStaffTab("months")} style={{background:staffTab==="months"?"#1a0000":"rgba(20,0,0,0.6)",color:staffTab==="months"?"#cc0000":"#554444",border:`1px solid ${staffTab==="months"?"#cc0000":"#2a1010"}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontWeight:"bold"}}>📅 Months</button>
           </div>
           <div style={{background:"rgba(80,0,0,0.2)",border:"1px solid #330000",borderRadius:20,padding:"4px 14px",fontSize:11,color:"#aa4444",letterSpacing:1}}>{new Date().toLocaleDateString("en-BD",{weekday:"short",day:"numeric",month:"short"})}</div>
           <button onClick={onLock} style={{background:"rgba(200,0,0,0.1)",color:"#cc4444",border:"1px solid #330000",borderRadius:6,padding:"5px 14px",cursor:"pointer",fontSize:11,fontWeight:"bold",letterSpacing:1}}>LOCK</button>
@@ -544,11 +558,9 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock,pnlData,pnlFrom,pnlT
         )}
 
         {staffTab==="pnl"&&(
-          <StaffPnlView data={pnlData} from={pnlFrom} to={pnlTo} onFromChange={onPnlFromChange} onToChange={onPnlToChange}/>
+          <StaffPnlView data={pnlData} from={pnlFrom} to={pnlTo} onFromChange={onPnlFromChange} onToChange={onPnlToChange} orders={orders} onToggleDelivery={onUpdateDeliveryPaid}/>
         )}
-        {staffTab==="months"&&(
-          <StaffMonthlyFolders orders={orders} onToggleDelivery={onUpdateDeliveryPaid}/>
-        )}
+
       </div>
 
       {/* Footer */}
