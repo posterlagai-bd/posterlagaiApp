@@ -1587,21 +1587,21 @@ function MonthlyFolders({orders,onPrintOrder}){
               </div>
               {/* Black body with stats */}
               <div style={{background:"#0d0d0d",padding:"14px 16px",flex:1,display:"flex",flexDirection:"column",gap:10}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Revenue</span>
-                  <span style={{fontWeight:"bold",color:"#4488ff",fontSize:14}}>{tk(stats.revenue)}</span>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:6}}>
+                  <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1,whiteSpace:"nowrap"}}>Revenue</span>
+                  <span style={{fontWeight:"bold",color:"#4488ff",fontSize:13,whiteSpace:"nowrap"}}>{tk(stats.revenue)}</span>
                 </div>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Courier Cost</span>
-                  <span style={{fontWeight:"bold",color:"#aaa",fontSize:14}}>{tk(stats.courierCost)}</span>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:6}}>
+                  <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1,whiteSpace:"nowrap"}}>Courier</span>
+                  <span style={{fontWeight:"bold",color:"#aaa",fontSize:13,whiteSpace:"nowrap"}}>{tk(stats.courierCost)}</span>
                 </div>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Profit</span>
-                  <span style={{fontWeight:"bold",color:stats.profit>=0?"#44cc44":"#cc4444",fontSize:14}}>{tk(stats.profit)}</span>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:6}}>
+                  <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1,whiteSpace:"nowrap"}}>Profit</span>
+                  <span style={{fontWeight:"bold",color:stats.profit>=0?"#44cc44":"#cc4444",fontSize:13,whiteSpace:"nowrap"}}>{tk(stats.profit)}</span>
                 </div>
-                <div style={{borderTop:"1px solid #1e1e1e",paddingTop:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Grand Total</span>
-                  <span style={{fontWeight:"bold",color:"#cc0000",fontSize:16}}>{tk(stats.grandTotal)}</span>
+                <div style={{borderTop:"1px solid #1e1e1e",paddingTop:10,display:"flex",justifyContent:"space-between",alignItems:"center",gap:6}}>
+                  <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1,whiteSpace:"nowrap"}}>Total</span>
+                  <span style={{fontWeight:"bold",color:"#cc0000",fontSize:15,whiteSpace:"nowrap"}}>{tk(stats.grandTotal)}</span>
                 </div>
               </div>
               {/* Dark bottom bar */}
