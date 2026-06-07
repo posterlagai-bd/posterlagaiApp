@@ -1072,8 +1072,10 @@ function SteadfastButton({order:o,grandTotal,onUpdate}){
     }
   };
 
+  const[unbookConfirm,setUnbookConfirm]=useState(false);
+  const[sendConfirm,setSendConfirm]=useState(false);
   const unbook=()=>{
-    setConsignment(null);setStatus(null);setErrMsg("");
+    setConsignment(null);setStatus(null);setErrMsg("");setUnbookConfirm(false);
     if(onUpdate)onUpdate(o.id,{steadfastConsignment:null});
   };
 
@@ -1106,14 +1108,36 @@ function SteadfastButton({order:o,grandTotal,onUpdate}){
           <span>✅ Booked on Steadfast</span>
           {consignment.parcelId&&<CopyField label="Parcel ID" value={String(consignment.parcelId)}/>}
           {consignment.trackingCode&&<CopyField label="Tracking" value={consignment.trackingCode} link={`https://steadfast.com.bd/tracking/${consignment.trackingCode}`}/>}
-          <button onClick={unbook} title="Mark as not booked" style={{marginLeft:"auto",...bS("#1a0000","#cc4444",11,"#330000"),padding:"3px 8px"}}>✕ Unbook</button>
+          {!unbookConfirm
+            ?<button onClick={()=>setUnbookConfirm(true)} title="Unbook" style={{marginLeft:"auto",...bS("#1a0000","#cc4444",11,"#330000"),padding:"3px 8px"}}>✕ Unbook</button>
+            :<div style={{marginLeft:"auto",display:"flex",flexDirection:"column",gap:6,background:"#1a0000",border:"1px solid #550000",borderRadius:6,padding:"8px 10px",maxWidth:260}}>
+              <div style={{color:"#ff6666",fontSize:11,fontWeight:"bold"}}>⚠ This only removes it here.</div>
+              <div style={{color:"#aaa",fontSize:11}}>You must also cancel it manually on <a href="https://portal.steadfast.com.bd" target="_blank" rel="noopener noreferrer" style={{color:"#55aaff"}}>Steadfast portal</a> — there is no cancel API.</div>
+              <div style={{display:"flex",gap:6}}>
+                <button onClick={()=>setUnbookConfirm(false)} style={{...bS("#1a1a1a","#888",11,"#333"),flex:1}}>Cancel</button>
+                <button onClick={unbook} style={{...bS("#cc0000","#fff",11),flex:1}}>Remove anyway</button>
+              </div>
+            </div>
+          }
         </div>
-        :<div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-          <button onClick={send} disabled={status==="loading"} style={{...bS("#1a0000","#cc0000",12,"#330000"),opacity:status==="loading"?0.6:1,cursor:status==="loading"?"wait":"pointer"}}>
-            {status==="loading"?"⏳ Sending…":"🚚 Send to Steadfast"}
-          </button>
-          <button onClick={()=>{setStatus("setup");setInputUrl(proxyUrl);}} title="Change worker URL" style={{background:"none",border:"none",color:"#333",cursor:"pointer",fontSize:14,padding:"2px 4px"}}>⚙</button>
-          {status==="err"&&<span style={{fontSize:11,color:"#ff6666"}}>⚠ {errMsg}</span>}
+        :<div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {!sendConfirm
+            ?<div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+              <button onClick={()=>setSendConfirm(true)} disabled={status==="loading"} style={{...bS("#1a0000","#cc0000",12,"#330000"),opacity:status==="loading"?0.6:1,cursor:status==="loading"?"wait":"pointer"}}>
+                {status==="loading"?"⏳ Sending…":"🚚 Send to Steadfast"}
+              </button>
+              <button onClick={()=>{setStatus("setup");setInputUrl(proxyUrl);}} title="Change worker URL" style={{background:"none",border:"none",color:"#333",cursor:"pointer",fontSize:14,padding:"2px 4px"}}>⚙</button>
+              {status==="err"&&<span style={{fontSize:11,color:"#ff6666"}}>⚠ {errMsg}</span>}
+            </div>
+            :<div style={{background:"#1a0a00",border:"1px solid #553300",borderRadius:6,padding:"10px 12px",fontSize:12}}>
+              <div style={{color:"#ffaa44",fontWeight:"bold",marginBottom:4}}>🚚 Confirm Send to Steadfast?</div>
+              <div style={{color:"#aaa",marginBottom:10}}>This will create a consignment on Steadfast for <strong style={{color:"#fff"}}>{o.clientName}</strong> with COD amount <strong style={{color:"#fff"}}>{tk(grandTotal)}</strong>. This cannot be undone via API.</div>
+              <div style={{display:"flex",gap:6}}>
+                <button onClick={()=>setSendConfirm(false)} style={{...bS("#1a1a1a","#888",12,"#333"),flex:1}}>Cancel</button>
+                <button onClick={()=>{setSendConfirm(false);send();}} style={{...bS("#cc0000","#fff",12),flex:1}}>Yes, Send</button>
+              </div>
+            </div>
+          }
         </div>
       }
     </div>
