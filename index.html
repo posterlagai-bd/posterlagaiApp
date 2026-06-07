@@ -111,8 +111,9 @@ const hasCost=(products=[])=>products.some(p=>parseFloat(p.cost)>0);
 const orderProfit=(products=[],deliveryCharge=0,deliveryPaid=false,actualDC="")=>{
   const rev=orderRevenue(products);
   const cost=hasCost(products)?orderCost(products):0;
+  const dc=parseFloat(deliveryCharge)||0;
   const realDC=parseFloat(actualDC)||0;
-  return rev-cost-realDC;
+  return rev+(dc-realDC)-cost;
 };
 let nextSeq=1;
 const makeOrder=()=>({
