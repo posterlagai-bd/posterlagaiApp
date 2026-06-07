@@ -986,7 +986,15 @@ function CopyField({label,value,link}){
         ?<a href={link} target="_blank" rel="noopener noreferrer" style={{color:"#fff",fontWeight:"bold",letterSpacing:0.5,textDecoration:"underline",textUnderlineOffset:2}}>{value}</a>
         :<strong style={{color:"#fff",letterSpacing:0.5}}>{value}</strong>
       }
-      <button onClick={copy} style={{background:copied?"#0a3a0a":"#1a1a1a",color:copied?"#44cc44":"#aaa",border:`1px solid ${copied?"#005500":"#333"}`,borderRadius:4,padding:"1px 7px",cursor:"pointer",fontSize:11,fontWeight:"bold",transition:"all 0.2s"}}>{copied?"✓":"Copy"}</button>
+      <button onClick={copy} title={copied?"Copied!":"Copy"} style={{background:"none",border:"none",cursor:"pointer",padding:"1px 3px",display:"inline-flex",alignItems:"center",color:copied?"#44cc44":"#aaa",transition:"color 0.2s"}}>
+        {copied
+          ?<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="2,7 5.5,11 12,3" stroke="#44cc44" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          :<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4" y="1" width="8" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+            <rect x="1" y="4" width="8" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.4" fill="#0d0d0d"/>
+          </svg>
+        }
+      </button>
     </span>
   );
 }
@@ -1097,7 +1105,7 @@ function SteadfastButton({order:o,grandTotal,onUpdate}){
         ?<div style={{background:"#0a2a0a",border:"1px solid #005500",borderRadius:6,padding:"8px 12px",fontSize:12,color:"#44cc44",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
           <span>✅ Booked on Steadfast</span>
           {consignment.parcelId&&<CopyField label="Parcel ID" value={String(consignment.parcelId)}/>}
-          {consignment.trackingCode&&<CopyField label="Tracking" value={consignment.trackingCode} link="https://steadfast.com.bd/tracking"/>}
+          {consignment.trackingCode&&<CopyField label="Tracking" value={consignment.trackingCode} link={`https://steadfast.com.bd/tracking/${consignment.trackingCode}`}/>}
           <button onClick={unbook} title="Mark as not booked" style={{marginLeft:"auto",...bS("#1a0000","#cc4444",11,"#330000"),padding:"3px 8px"}}>✕ Unbook</button>
         </div>
         :<div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
