@@ -801,6 +801,50 @@ function App(){
   const[printOrder,setPrintOrder]=useState(null);
   const[confirmDelete,setConfirmDelete]=useState(null);
 
+  // ── BACK BUTTON SUPPORT ──
+  const pushNav=(state)=>{window.history.pushState(state,"","");};
+  const goOrders=()=>{setShowForm(false);setDraft(null);setPrintOrder(null);setView("orders");};
+
+  // When navigating to a "sub-screen", push a history entry so back returns home
+  const navToForm=useCallback((d)=>{setDraft(d);setShowForm(true);pushNav({screen:"form"});},[]);
+  const navToPrint=useCallback((o)=>{setPrintOrder(o);pushNav({screen:"print"});},[]);
+  const navToView=useCallback((v)=>{setView(v);pushNav({screen:"view",v});},[]);
+
+  // Push history when a status filter is applied so back can clear it
+  const navToFilter=useCallback((status)=>{
+    if(status==="All"){
+      setFilterStatus("All");
+      window.history.back();
+    } else {
+      setFilterStatus(status);
+      pushNav({screen:"filter",status});
+    }
+  },[]);
+
+  useEffect(()=>{
+    const onPop=(e)=>{
+      const s=e.state;
+      // No state or base = browser will exit naturally, do nothing
+      if(!s||s.screen==="base"){return;}
+      if(s.screen==="orders"){
+        // Buffer entry: user pressed back from All Orders once, stays here (next back exits)
+        goOrders();
+      } else if(s.screen==="filter"){
+        // Back from a filtered view → clear filter, re-push the orders buffer so back twice exits
+        setFilterStatus("All");
+        pushNav({screen:"orders"});
+      } else {
+        // Back from form / print / expenses / pnl → go to All Orders and re-push buffer
+        goOrders();
+        pushNav({screen:"orders"});
+      }
+    };
+    window.addEventListener("popstate",onPop);
+    // Seed two history entries on first load: base (exit point) + buffer so back once stays in All Orders
+    if(!window.history.state){window.history.replaceState({screen:"base"},"","");window.history.pushState({screen:"orders"},"","");}
+    return()=>window.removeEventListener("popstate",onPop);
+  },[]);
+
   useEffect(()=>{
     if(window.__firebaseReady){setFbReady(true);return;}
     const h=()=>setFbReady(true);
@@ -912,7 +956,7 @@ function App(){
   }
 
   // ── OWNER VIEW ──
-  if(printOrder)return<InvoicePrint order={printOrder} onClose={()=>setPrintOrder(null)} onSave={async(u)=>{await updateOrder(u.id,u);setPrintOrder({...printOrder,...u});}}/>;
+  if(printOrder)return<InvoicePrint order={printOrder} onClose={()=>window.history.back()} onSave={async(u)=>{await updateOrder(u.id,u);setPrintOrder({...printOrder,...u});}}/>;
 
   return(
     <div style={{fontFamily:"Georgia,serif",background:"#0d0d0d",minHeight:"100vh",color:"#eee"}}>
@@ -927,9 +971,9 @@ function App(){
         <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
           <div style={{width:8,height:8,borderRadius:"50%",background:"#44cc44",boxShadow:"0 0 6px #44cc44"}}/>
           <span style={{fontSize:11,color:"#44cc44"}}>Firebase Live</span>
-          <NavBtn label="📦 Orders"   active={view==="orders"}   onClick={()=>setView("orders")}/>
-          <NavBtn label="💸 Expenses" active={view==="expenses"} onClick={()=>setView("expenses")}/>
-          <NavBtn label="📊 P&L"      active={view==="pnl"}      onClick={()=>setView("pnl")}/>
+          <NavBtn label="📦 Orders"   active={view==="orders"}   onClick={()=>navToView("orders")}/>
+          <NavBtn label="💸 Expenses" active={view==="expenses"} onClick={()=>navToView("expenses")}/>
+          <NavBtn label="📊 P&L"      active={view==="pnl"}      onClick={()=>navToView("pnl")}/>
           <span style={{fontSize:12,background:"#1a1a1a",border:"1px solid #cc0000",padding:"4px 10px",borderRadius:20,color:"#cc0000"}}>{user.label} ✓</span>
           <button onClick={()=>setUser(null)} style={bS("#1a1a1a","#aaa",11,"#444")}>Lock</button>
         </div>
@@ -946,18 +990,18 @@ function App(){
           <>
             <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap",alignItems:"center"}}>
               <input placeholder="Search client or product…" value={search} onChange={e=>setSearch(e.target.value)} style={iS({flex:1,minWidth:150})}/>
-              <button onClick={()=>{setDraft(makeOrder());setShowForm(true);}} style={bS("#cc0000","#fff")}>+ New Order</button>
+              <button onClick={()=>navToForm(makeOrder())} style={bS("#cc0000","#fff")}>+ New Order</button>
             </div>
             <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
               {STATUS_FLOW.map(s=>{
                 const active=filterStatus===s;
                 return(
-                  <div key={s} onClick={()=>setFilterStatus(active?"All":s)} style={{background:active?STATUS_COLOR[s].bg:"#1a1a1a",border:`1px solid ${active?STATUS_COLOR[s].border:"#333"}`,color:active?STATUS_COLOR[s].text:"#555",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:"bold",cursor:"pointer",transition:"all 0.15s",userSelect:"none"}}>
+                  <div key={s} onClick={()=>navToFilter(active?"All":s)} style={{background:active?STATUS_COLOR[s].bg:"#1a1a1a",border:`1px solid ${active?STATUS_COLOR[s].border:"#333"}`,color:active?STATUS_COLOR[s].text:"#555",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:"bold",cursor:"pointer",transition:"all 0.15s",userSelect:"none"}}>
                     {s}: {orders.filter(o=>o.status===s).length}
                   </div>
                 );
               })}
-              {filterStatus!=="All"&&<div onClick={()=>setFilterStatus("All")} style={{background:"#1a1a1a",border:"1px solid #333",color:"#666",borderRadius:8,padding:"5px 12px",fontSize:12,cursor:"pointer",userSelect:"none"}}>✕ All</div>}
+              {filterStatus!=="All"&&<div onClick={()=>navToFilter("All")} style={{background:"#1a1a1a",border:"1px solid #333",color:"#666",borderRadius:8,padding:"5px 12px",fontSize:12,cursor:"pointer",userSelect:"none"}}>✕ All</div>}
               <div onClick={()=>setFilterUnpaidDC(f=>!f)} style={{background:filterUnpaidDC?"#2a0a0a":"#1a1a1a",border:`1px solid ${filterUnpaidDC?"#cc4444":"#333"}`,color:filterUnpaidDC?"#ff4444":"#555",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:"bold",cursor:"pointer",transition:"all 0.15s",userSelect:"none",marginLeft:"auto"}}>
                 🚚 Unpaid DC: {orders.filter(o=>parseFloat(o.deliveryCharge)>0&&!o.deliveryPaid).length}
               </div>
@@ -965,18 +1009,18 @@ function App(){
             {visible.length===0&&<div style={{textAlign:"center",color:"#444",marginTop:60,fontSize:15}}>No orders yet. Add one above!</div>}
             {visible.map(o=>(
               <OrderCard key={o.id} order={o} onUpdate={updateOrder} onAdvance={advanceStatus}
-                onEdit={()=>{setDraft({...o,products:o.products.map(p=>({...p}))});setShowForm(true);}}
-                onPrint={()=>setPrintOrder(o)} onDeleteRequest={id=>setConfirmDelete(id)}/>
+                onEdit={()=>navToForm({...o,products:o.products.map(p=>({...p}))})}
+                onPrint={()=>navToPrint(o)} onDeleteRequest={id=>setConfirmDelete(id)}/>
             ))}
           </>
         )}
         {view==="expenses"&&<ExpenseTracker canEdit={true}/>}
-        {view==="pnl"&&<PnlView data={pnlData} allOrders={orders.filter(o=>o.status==="Delivered")} from={pnlFrom} to={pnlTo} onFromChange={setPnlFrom} onToChange={setPnlTo} onPrintOrder={setPrintOrder}/>}
+        {view==="pnl"&&<PnlView data={pnlData} allOrders={orders.filter(o=>o.status==="Delivered")} from={pnlFrom} to={pnlTo} onFromChange={setPnlFrom} onToChange={setPnlTo} onPrintOrder={(o)=>navToPrint(o)}/>}
       </div>
 
       {showForm&&draft&&(
-        <Modal onClose={()=>{setShowForm(false);setDraft(null);}}>
-          <OrderForm draft={draft} setDraft={setDraft} onSave={saveOrder} onCancel={()=>{setShowForm(false);setDraft(null);}}/>
+        <Modal onClose={()=>{window.history.back();}}>
+          <OrderForm draft={draft} setDraft={setDraft} onSave={saveOrder} onCancel={()=>window.history.back()}/>
         </Modal>
       )}
 
@@ -1073,28 +1117,40 @@ function OrderCard({order:o,onUpdate,onAdvance,onEdit,onPrint,onDeleteRequest}){
 }
 
 // ── STEADFAST COURIER ─────────────────────────────────────────────────────────
-const SF_API_KEY="xfumw1yla61ttkhp1qbvh19tcqbha2li";
-const SF_SECRET_KEY="gohj6h5f01asbvbll9mteudx";
+// Direct API calls are blocked by browser CORS. Requests go through a
+// Cloudflare Worker proxy. Set your deployed worker URL below after setup.
+const SF_PROXY_URL = localStorage.getItem("sf_proxy_url") || "";
 
 function SteadfastButton({order:o,grandTotal}){
-  const[status,setStatus]=useState(null); // null | "loading" | "ok" | "err"
+  const[status,setStatus]=useState(null); // null | "loading" | "ok" | "err" | "setup"
   const[msg,setMsg]=useState("");
+  const[proxyUrl,setProxyUrl]=useState(SF_PROXY_URL);
+  const[inputUrl,setInputUrl]=useState(SF_PROXY_URL);
+
+  const save=()=>{
+    const url=inputUrl.trim().replace(/\/$/,"");
+    localStorage.setItem("sf_proxy_url",url);
+    setProxyUrl(url);
+    setStatus(null);
+  };
 
   const send=async()=>{
+    if(!proxyUrl){setStatus("setup");return;}
     if(!o.clientName||!o.phone||!o.address){
       setStatus("err");setMsg("Order needs name, phone & address first.");return;
     }
     setStatus("loading");setMsg("");
     try{
-      const res=await fetch("https://portal.steadfast.com.bd/api/v1/create_order",{
+      const res=await fetch(proxyUrl,{
         method:"POST",
-        headers:{"Content-Type":"application/json","Api-Key":SF_API_KEY,"Secret-Key":SF_SECRET_KEY},
+        headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
+          endpoint:"create_order",
           invoice:o.invoiceNum||`PL${String(o.seq).padStart(5,"0")}`,
           recipient_name:o.clientName,
           recipient_phone:o.phone,
           recipient_address:o.address,
-          cod_amount:grandTotal,
+          cod_amount:Math.round(grandTotal),
           note:o.notes||"",
         }),
       });
@@ -1105,12 +1161,34 @@ function SteadfastButton({order:o,grandTotal}){
         setMsg(tid?"Booked! Tracking: "+tid:"Booked successfully!");
       }else{
         setStatus("err");
-        setMsg(data.message||data.errors||"Steadfast error. Check details.");
+        setMsg(data.message||(typeof data.errors==="string"?data.errors:JSON.stringify(data.errors))||"Steadfast error.");
       }
     }catch(e){
       setStatus("err");setMsg("Network error: "+e.message);
     }
   };
+
+  if(status==="setup"||(!proxyUrl&&status!=="ok")){
+    return(
+      <div style={{background:"#0a1a2a",border:"1px solid #003366",borderRadius:8,padding:"10px 12px",marginBottom:8,fontSize:12}}>
+        <div style={{color:"#55aaff",fontWeight:"bold",marginBottom:6}}>⚙️ One-time Steadfast Setup</div>
+        <div style={{color:"#aaa",marginBottom:8,lineHeight:1.5}}>
+          Browsers block direct API calls (CORS). You need a free Cloudflare Worker proxy.<br/>
+          <b style={{color:"#fff"}}>Steps:</b><br/>
+          1. Go to <a href="https://workers.cloudflare.com" target="_blank" style={{color:"#55aaff"}}>workers.cloudflare.com</a> → sign up free<br/>
+          2. Create a new Worker → paste the code from <b style={{color:"#fff"}}>steadfast-worker.js</b><br/>
+          3. Deploy → copy the <b style={{color:"#fff"}}>*.workers.dev</b> URL → paste below
+        </div>
+        <div style={{display:"flex",gap:6}}>
+          <input value={inputUrl} onChange={e=>setInputUrl(e.target.value)}
+            placeholder="https://your-worker.workers.dev"
+            style={{flex:1,background:"#0d0d0d",border:"1px solid #003366",borderRadius:4,padding:"5px 8px",color:"#eee",fontSize:12,outline:"none"}}/>
+          <button onClick={save} style={bS("#003366","#55aaff",12,"#0055aa")}>Save</button>
+          {proxyUrl&&<button onClick={()=>setStatus(null)} style={bS("#1a1a1a","#666",12,"#333")}>Cancel</button>}
+        </div>
+      </div>
+    );
+  }
 
   return(
     <div style={{marginBottom:8}}>
@@ -1120,6 +1198,7 @@ function SteadfastButton({order:o,grandTotal}){
           <button onClick={send} disabled={status==="loading"} style={{...bS("#001a33","#55aaff",12,"#003366"),opacity:status==="loading"?0.6:1,cursor:status==="loading"?"wait":"pointer"}}>
             {status==="loading"?"⏳ Sending…":"🚚 Send to Steadfast"}
           </button>
+          <button onClick={()=>{setStatus("setup");setInputUrl(proxyUrl);}} title="Change worker URL" style={{background:"none",border:"none",color:"#333",cursor:"pointer",fontSize:14,padding:"2px 4px"}}>⚙</button>
           {status==="err"&&<span style={{fontSize:11,color:"#ff6666"}}>⚠ {msg}</span>}
         </div>
       }
