@@ -1572,85 +1572,101 @@ function MonthlyFolders({orders,onPrintOrder}){
   };
 
   return(
-    <div style={{display:"flex",flexWrap:"wrap",gap:16,alignItems:"flex-start"}}>
+    <div style={{display:"flex",flexDirection:"column",gap:0}}>
+      {/* Tile row — all month cards side by side */}
+      <div style={{display:"flex",flexWrap:"wrap",gap:16,alignItems:"flex-start",marginBottom:8}}>
+        {grouped.map(([key,ords])=>{
+          const isOpen=!!openMonths[key];
+          const stats=monthStats(ords);
+          return(
+            <div key={key} style={{borderRadius:10,overflow:"hidden",border:`1px solid ${isOpen?"#cc0000":"#2a2a2a"}`,display:"flex",flexDirection:"column",width:"calc(20% - 13px)",minWidth:200,boxSizing:"border-box",transition:"border-color 0.2s"}}>
+              {/* Red top bar */}
+              <div onClick={()=>toggleMonth(key)} style={{background:isOpen?"#aa0000":"#cc0000",padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontWeight:"bold",fontSize:14,color:"#fff",letterSpacing:0.5}}>📅 {monthLabel(key)}</span>
+                <span style={{background:"rgba(0,0,0,0.25)",color:"#ffcccc",borderRadius:20,padding:"2px 9px",fontSize:11,fontWeight:"bold"}}>{ords.length} orders</span>
+              </div>
+              {/* Black body with stats */}
+              <div style={{background:"#0d0d0d",padding:"14px 16px",flex:1,display:"flex",flexDirection:"column",gap:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Revenue</span>
+                  <span style={{fontWeight:"bold",color:"#4488ff",fontSize:14}}>{tk(stats.revenue)}</span>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Courier Cost</span>
+                  <span style={{fontWeight:"bold",color:"#aaa",fontSize:14}}>{tk(stats.courierCost)}</span>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Profit</span>
+                  <span style={{fontWeight:"bold",color:stats.profit>=0?"#44cc44":"#cc4444",fontSize:14}}>{tk(stats.profit)}</span>
+                </div>
+                <div style={{borderTop:"1px solid #1e1e1e",paddingTop:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Grand Total</span>
+                  <span style={{fontWeight:"bold",color:"#cc0000",fontSize:16}}>{tk(stats.grandTotal)}</span>
+                </div>
+              </div>
+              {/* Dark bottom bar */}
+              <div style={{background:"#1a1a1a",padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:"1px solid #2a2a2a"}}>
+                <span onClick={()=>toggleMonth(key)} style={{color:isOpen?"#cc0000":"#555",fontSize:12,cursor:"pointer",userSelect:"none",fontWeight:isOpen?"bold":"normal"}}>{isOpen?"▲ Hide orders":"▼ View orders"}</span>
+                <button onClick={e=>{e.stopPropagation();downloadMonthPDF(key,ords);}} style={{...bS("#cc0000","#fff",11),padding:"5px 12px"}}>⬇ PDF</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Expanded orders — rendered full-width below all tiles */}
       {grouped.map(([key,ords])=>{
-        const isOpen=!!openMonths[key];
-        const stats=monthStats(ords);
+        if(!openMonths[key])return null;
         const sorted=ords.slice().sort((a,b)=>{
           const ai=parseInt((a.invoiceNum||"").replace(/\D/g,""))||0;
           const bi=parseInt((b.invoiceNum||"").replace(/\D/g,""))||0;
           return bi-ai;
         });
         return(
-          <div key={key} style={{borderRadius:10,overflow:"hidden",border:"1px solid #2a2a2a",display:"flex",flexDirection:"column",width:"calc(20% - 13px)",minWidth:200,boxSizing:"border-box"}}>
-            {/* Red top bar */}
-            <div onClick={()=>toggleMonth(key)} style={{background:"#cc0000",padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <span style={{fontWeight:"bold",fontSize:14,color:"#fff",letterSpacing:0.5}}>📅 {monthLabel(key)}</span>
-              <span style={{background:"rgba(0,0,0,0.25)",color:"#ffcccc",borderRadius:20,padding:"2px 9px",fontSize:11,fontWeight:"bold"}}>{ords.length} orders</span>
+          <div key={key+"_open"} style={{width:"100%",background:"#0d0d0d",border:"1px solid #cc0000",borderRadius:10,marginBottom:16,overflow:"hidden"}}>
+            {/* Section header */}
+            <div style={{background:"#1a0000",borderBottom:"1px solid #330000",padding:"10px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <span style={{fontWeight:"bold",color:"#cc0000",fontSize:14,letterSpacing:0.5}}>📅 {monthLabel(key)} — {ords.length} orders</span>
+              <span onClick={()=>toggleMonth(key)} style={{color:"#555",fontSize:12,cursor:"pointer",userSelect:"none"}}>▲ Collapse</span>
             </div>
-            {/* Black body with stats */}
-            <div style={{background:"#0d0d0d",padding:"14px 16px",flex:1,display:"flex",flexDirection:"column",gap:10}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Revenue</span>
-                <span style={{fontWeight:"bold",color:"#4488ff",fontSize:14}}>{tk(stats.revenue)}</span>
-              </div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Courier Cost</span>
-                <span style={{fontWeight:"bold",color:"#aaa",fontSize:14}}>{tk(stats.courierCost)}</span>
-              </div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Profit</span>
-                <span style={{fontWeight:"bold",color:stats.profit>=0?"#44cc44":"#cc4444",fontSize:14}}>{tk(stats.profit)}</span>
-              </div>
-              <div style={{borderTop:"1px solid #1e1e1e",paddingTop:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Grand Total</span>
-                <span style={{fontWeight:"bold",color:"#cc0000",fontSize:16}}>{tk(stats.grandTotal)}</span>
-              </div>
-            </div>
-            {/* Dark bottom bar */}
-            <div style={{background:"#1a1a1a",padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:"1px solid #2a2a2a"}}>
-              <span onClick={()=>toggleMonth(key)} style={{color:"#555",fontSize:12,cursor:"pointer",userSelect:"none"}}>{isOpen?"▲ Hide orders":"▼ View orders"}</span>
-              <button onClick={e=>{e.stopPropagation();downloadMonthPDF(key,ords);}} style={{...bS("#cc0000","#fff",11),padding:"5px 12px"}}>⬇ PDF</button>
-            </div>
-            {/* Orders expanded below - full width */}
-            {isOpen&&(
-              <div style={{padding:"12px",background:"#0d0d0d",borderTop:"1px solid #1e1e1e"}}>
-                {sorted.map(o=>{
-                  const rev=orderRevenue(o.products),dc=parseFloat(o.deliveryCharge)||0,grand=o.deliveryPaid?rev:rev+dc;
-                  const cost=orderCost(o.products),profit=orderProfit(o.products,o.deliveryCharge,o.deliveryPaid,o.actualDC);
-                  return(
-                    <div key={o.id} style={{background:"#111",border:"1px solid #1e1e1e",borderRadius:10,marginBottom:10,overflow:"hidden"}}>
-                      <div style={{background:"#1a1a1a",padding:"8px 14px",display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:6,alignItems:"center"}}>
-                        <span style={{fontWeight:"bold",color:"#fff"}}>#{o.seq} {o.clientName}</span>
-                        <div style={{display:"flex",gap:10,alignItems:"center",fontSize:12,flexWrap:"wrap"}}>
-                          <span style={{color:"#666"}}>{o.paymentMethod}</span>
-                          {cost>0&&<span style={{color:"#aaa"}}>Cost: {tk(cost)}</span>}
-                          <span style={{color:profit>=0?"#44cc44":"#cc4444"}}>Profit: {tk(profit)}</span>
-                          {dc>0&&<span style={{color:o.deliveryPaid?"#44cc44":"#cc4444"}}>🚚 {tk(dc)} {o.deliveryPaid?"Paid":"Unpaid"}</span>}
-                          <span style={{color:"#cc0000",fontWeight:"bold"}}>Total: {tk(grand)}</span>
-                          {onPrintOrder&&<button onClick={()=>onPrintOrder(o)} style={bS("#1a1a1a","#fff",11,"#333")}>🖨️ Invoice</button>}
-                        </div>
+            <div style={{padding:"12px 14px"}}>
+              {sorted.map(o=>{
+                const rev=orderRevenue(o.products),dc=parseFloat(o.deliveryCharge)||0,grand=o.deliveryPaid?rev:rev+dc;
+                const cost=orderCost(o.products),profit=orderProfit(o.products,o.deliveryCharge,o.deliveryPaid,o.actualDC);
+                return(
+                  <div key={o.id} style={{background:"#111",border:"1px solid #1e1e1e",borderRadius:10,marginBottom:10,overflow:"hidden"}}>
+                    <div style={{background:"#1a1a1a",padding:"8px 14px",display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:6,alignItems:"center"}}>
+                      <span style={{fontWeight:"bold",color:"#fff"}}>#{o.seq} {o.clientName}</span>
+                      <div style={{display:"flex",gap:10,alignItems:"center",fontSize:12,flexWrap:"wrap"}}>
+                        <span style={{color:"#666"}}>{o.paymentMethod}</span>
+                        {cost>0&&<span style={{color:"#aaa"}}>Cost: {tk(cost)}</span>}
+                        <span style={{color:profit>=0?"#44cc44":"#cc4444"}}>Profit: {tk(profit)}</span>
+                        {dc>0&&<span style={{color:o.deliveryPaid?"#44cc44":"#cc4444"}}>🚚 {tk(dc)} {o.deliveryPaid?"Paid":"Unpaid"}</span>}
+                        <span style={{color:"#cc0000",fontWeight:"bold"}}>Total: {tk(grand)}</span>
+                        {onPrintOrder&&<button onClick={()=>onPrintOrder(o)} style={bS("#1a1a1a","#fff",11,"#333")}>🖨️ Invoice</button>}
                       </div>
+                    </div>
+                    <div style={{overflowX:"auto"}}>
                       <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                        <thead><tr style={{background:"#0d0d0d"}}>{["Item","Qty","Rate","Amount"].map(h=><th key={h} style={{padding:"6px 12px",textAlign:h==="Item"?"left":"right",color:"#555"}}>{h}</th>)}</tr></thead>
+                        <thead><tr style={{background:"#0d0d0d"}}>{["Item","Qty","Rate","Amount"].map(h=><th key={h} style={{padding:"6px 12px",textAlign:h==="Item"?"left":"right",color:"#555",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
                         <tbody>{o.products.map((p,i)=>(
                           <tr key={p.id} style={{background:i%2===0?"#111":"#0d0d0d",borderBottom:"1px solid #1a1a1a"}}>
                             <td style={{padding:"6px 12px",color:"#fff",fontWeight:"bold"}}>{p.name||"—"}</td>
-                            <td style={{padding:"6px 12px",color:"#666",textAlign:"right"}}>{p.qty||"—"}</td>
-                            <td style={{padding:"6px 12px",color:"#666",textAlign:"right"}}>{p.unitPrice?tk(parseFloat(p.unitPrice)):"—"}</td>
-                            <td style={{padding:"6px 12px",color:"#fff",textAlign:"right"}}>{tk(productTotal(p))}</td>
+                            <td style={{padding:"6px 12px",color:"#666",textAlign:"right",whiteSpace:"nowrap"}}>{p.qty||"—"}</td>
+                            <td style={{padding:"6px 12px",color:"#666",textAlign:"right",whiteSpace:"nowrap"}}>{p.unitPrice?tk(parseFloat(p.unitPrice)):"—"}</td>
+                            <td style={{padding:"6px 12px",color:"#fff",textAlign:"right",fontWeight:"bold",whiteSpace:"nowrap"}}>{tk(productTotal(p))}</td>
                           </tr>
                         ))}</tbody>
                         <tfoot>
-                          {dc>0&&!o.deliveryPaid&&<tr style={{background:"#0d0d0d"}}><td colSpan={3} style={{padding:"6px 12px",color:"#555"}}>Delivery</td><td style={{padding:"6px 12px",color:"#888",textAlign:"right"}}>{tk(dc)}</td></tr>}
-                          <tr style={{background:"#cc0000"}}><td colSpan={3} style={{padding:"7px 12px",color:"#fff",fontWeight:"bold"}}>Total</td><td style={{padding:"7px 12px",color:"#fff",fontWeight:"bold",textAlign:"right"}}>{tk(grand)}</td></tr>
+                          {dc>0&&!o.deliveryPaid&&<tr style={{background:"#0d0d0d"}}><td colSpan={3} style={{padding:"6px 12px",color:"#555"}}>Delivery</td><td style={{padding:"6px 12px",color:"#888",textAlign:"right",whiteSpace:"nowrap"}}>{tk(dc)}</td></tr>}
+                          <tr style={{background:"#cc0000"}}><td colSpan={3} style={{padding:"7px 12px",color:"#fff",fontWeight:"bold"}}>Total</td><td style={{padding:"7px 12px",color:"#fff",fontWeight:"bold",textAlign:"right",whiteSpace:"nowrap"}}>{tk(grand)}</td></tr>
                         </tfoot>
                       </table>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         );
       })}
