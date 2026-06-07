@@ -465,12 +465,6 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock,pnlData,pnlFrom,pnlT
   const today=todayStr();
 
   const printToday=orders.filter(o=>o.printDate===today&&o.status==="Confirmed");
-  const dueSoon=orders.filter(o=>{
-    if(o.status==="Delivered")return false;
-    if(!o.deliveryDate)return false;
-    const diff=(new Date(o.deliveryDate)-new Date(today))/(1000*60*60*24);
-    return diff>=0&&diff<=2;
-  });
 
   const visible=orders.filter(o=>{
     const ms=filter==="All"||o.status===filter;
@@ -482,15 +476,8 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock,pnlData,pnlFrom,pnlT
     return ms&&mq&&mu;
   }).sort((a,b)=>(b.seq||0)-(a.seq||0));
 
-  const counts={};
-  STATUS_FLOW.forEach(s=>{counts[s]=orders.filter(o=>o.status===s).length;});
-
-  const nextToPrint=orders.filter(o=>o.status==="Confirmed"&&o.printDate)
-    .sort((a,b)=>new Date(a.printDate)-new Date(b.printDate))
-    .slice(0,3);
-
   return(
-    <div style={{minHeight:"100vh",background:"#050508",fontFamily:"'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,sans-serif",color:"#c8d8e8"}}>
+    <div style={{minHeight:"100vh",background:"#0d0d0d",fontFamily:"Georgia,serif",color:"#eee"}}>
       {/* Scanline overlay */}
       <div style={{position:"fixed",inset:0,pointerEvents:"none",background:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px)",zIndex:9998}}/>
 
@@ -522,85 +509,29 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock,pnlData,pnlFrom,pnlT
       <div style={{padding:"18px 16px",maxWidth:1000,margin:"0 auto"}}>
 
         {staffTab==="orders"&&(<>
-        {/* ALERTS */}
         {printToday.length>0&&(
-          <div style={{background:"linear-gradient(90deg,#1a0800,#220e00)",border:"1px solid #ff6600",borderRadius:10,padding:"12px 18px",marginBottom:14,display:"flex",alignItems:"center",gap:12,boxShadow:"0 0 20px rgba(255,100,0,0.15)"}}>
-            <div style={{fontSize:20}}>🖨️</div>
-            <div>
-              <div style={{fontWeight:"bold",color:"#ff8800",fontSize:13,letterSpacing:1}}>PRINT TODAY</div>
-              <div style={{fontSize:12,color:"#cc6600",marginTop:2}}>{printToday.map(o=>`#${o.seq} ${o.clientName}`).join(" · ")}</div>
-            </div>
+          <div style={{background:"#cc0000",color:"#fff",padding:"8px 20px",fontWeight:"bold",fontSize:13,marginBottom:10}}>
+            🖨️ PRINT TODAY: {printToday.map(o=>o.clientName).join(" · ")}
           </div>
         )}
-        {dueSoon.length>0&&(
-          <div style={{background:"linear-gradient(90deg,#0a1a00,#0e2200)",border:"1px solid #44aa00",borderRadius:10,padding:"12px 18px",marginBottom:14,display:"flex",alignItems:"center",gap:12,boxShadow:"0 0 20px rgba(68,170,0,0.1)"}}>
-            <div style={{fontSize:20}}>📅</div>
-            <div>
-              <div style={{fontWeight:"bold",color:"#66cc00",fontSize:13,letterSpacing:1}}>DELIVERY DUE SOON</div>
-              <div style={{fontSize:12,color:"#448800",marginTop:2}}>{dueSoon.map(o=>`#${o.seq} ${o.clientName} → ${fmtDateShort(o.deliveryDate)}`).join(" · ")}</div>
-            </div>
-          </div>
-        )}
-
-        {/* STATUS SUMMARY */}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:18}}>
+        <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap",alignItems:"center"}}>
+          <input placeholder="Search client or product…" value={search} onChange={e=>setSearch(e.target.value)} style={iS({flex:1,minWidth:150})}/>
+        </div>
+        <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
           {STATUS_FLOW.map(s=>{
-            const sc=STAFF_STATUS_COLOR[s];
+            const active=filter===s;
             return(
-              <button key={s} onClick={()=>setFilter(filter===s?"All":s)}
-                style={{background:filter===s?sc.badge:"rgba(255,255,255,0.02)",border:`1px solid ${filter===s?sc.border:"#2a1010"}`,borderRadius:10,padding:"12px 10px",cursor:"pointer",textAlign:"center",transition:"all 0.2s",boxShadow:filter===s?`0 0 12px ${sc.border}40`:"none"}}>
-                <div style={{fontSize:22,fontWeight:"bold",color:sc.text}}>{counts[s]}</div>
-                <div style={{fontSize:11,color:"#2a4a5a",marginTop:4,letterSpacing:1}}>{s.toUpperCase()}</div>
-              </button>
+              <div key={s} onClick={()=>setFilter(active?"All":s)} style={{background:active?STATUS_COLOR[s].bg:"#1a1a1a",border:`1px solid ${active?STATUS_COLOR[s].border:"#333"}`,color:active?STATUS_COLOR[s].text:"#555",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:"bold",cursor:"pointer",transition:"all 0.15s",userSelect:"none"}}>
+                {s}: {orders.filter(o=>o.status===s).length}
+              </div>
             );
           })}
-        </div>
-
-        {/* NEXT TO PRINT */}
-        {nextToPrint.length>0&&(
-          <div style={{background:"rgba(20,0,0,0.4)",border:"1px solid #330000",borderRadius:10,padding:"14px 16px",marginBottom:18}}>
-            <div style={{fontSize:11,color:"#2a6080",letterSpacing:2,marginBottom:10,fontWeight:"bold"}}>▶ NEXT UP FOR PRINTING</div>
-            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-              {nextToPrint.map((o,i)=>{
-                const isFirst=i===0;
-                return(
-                  <div key={o.id} style={{background:isFirst?"rgba(255,170,0,0.08)":"rgba(255,255,255,0.02)",border:`1px solid ${isFirst?"#664400":"#1a1010"}`,borderRadius:8,padding:"10px 14px",flex:1,minWidth:180}}>
-                    {isFirst&&<div style={{fontSize:10,color:"#ffaa00",letterSpacing:1,marginBottom:4}}>⚡ UP NEXT</div>}
-                    <div style={{fontWeight:"bold",color:"#fff",fontSize:13}}>#{o.seq} {o.clientName}</div>
-                    <div style={{fontSize:12,color:"#664444",marginTop:3}}>Print: <span style={{color:isFirst?"#ffbb33":"#884444"}}>{fmtDateShort(o.printDate)}</span></div>
-                    {o.deliveryDate&&<div style={{fontSize:12,color:"#664444",marginTop:2}}>Deliver: <span style={{color:"#44cc88"}}>{fmtDateShort(o.deliveryDate)}</span></div>}
-                    <div style={{fontSize:11,color:"#2a4a5a",marginTop:4}}>{o.products.filter(p=>p.name).map(p=>`${p.name}${p.qty?` ×${p.qty}`:""}`).join(", ")||"—"}</div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* SEARCH + FILTER */}
-        <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap"}}>
-          <div style={{flex:1,minWidth:180,position:"relative"}}>
-            <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"#664444",fontSize:13}}>⌕</span>
-            <input placeholder="Search by name, phone, product…" value={search} onChange={e=>setSearch(e.target.value)}
-              style={{width:"100%",background:"rgba(20,0,0,0.5)",border:"1px solid #2a1010",borderRadius:8,padding:"9px 10px 9px 30px",fontSize:12,color:"#ccaaaa",outline:"none",boxSizing:"border-box"}}/>
-          </div>
-          <select value={filter} onChange={e=>setFilter(e.target.value)}
-            style={{background:"rgba(20,0,0,0.5)",border:"1px solid #2a1010",borderRadius:8,padding:"9px 12px",fontSize:12,color:"#ccaaaa",outline:"none",cursor:"pointer"}}>
-            <option value="All">All Orders</option>
-            {STATUS_FLOW.map(s=><option key={s} value={s}>{s} ({counts[s]})</option>)}
-          </select>
-        </div>
-        <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
           {filter!=="All"&&<div onClick={()=>setFilter("All")} style={{background:"#1a1a1a",border:"1px solid #333",color:"#666",borderRadius:8,padding:"5px 12px",fontSize:12,cursor:"pointer",userSelect:"none"}}>✕ All</div>}
           <div onClick={()=>setFilterUnpaidDC(f=>!f)} style={{background:filterUnpaidDC?"#2a0a0a":"#1a1a1a",border:`1px solid ${filterUnpaidDC?"#cc4444":"#333"}`,color:filterUnpaidDC?"#ff4444":"#555",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:"bold",cursor:"pointer",transition:"all 0.15s",userSelect:"none",marginLeft:"auto"}}>
             🚚 Unpaid DC: {orders.filter(o=>parseFloat(o.deliveryCharge)>0&&!o.deliveryPaid).length}
           </div>
         </div>
-
-        {/* ORDER LIST */}
-        {visible.length===0&&(
-          <div style={{textAlign:"center",color:"#1a3a5a",marginTop:60,fontSize:14,letterSpacing:1}}>NO ORDERS FOUND</div>
-        )}
+        {visible.length===0&&<div style={{textAlign:"center",color:"#444",marginTop:60,fontSize:15}}>No orders found.</div>}
         {visible.map(o=>(
           <StaffOrderCard key={o.id} order={o} expanded={expandedId===o.id}
             onToggle={()=>setExpandedId(expandedId===o.id?null:o.id)}
@@ -616,7 +547,7 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock,pnlData,pnlFrom,pnlT
           <StaffPnlView data={pnlData} from={pnlFrom} to={pnlTo} onFromChange={onPnlFromChange} onToChange={onPnlToChange}/>
         )}
         {staffTab==="months"&&(
-          <StaffMonthlyFolders orders={orders}/>
+          <StaffMonthlyFolders orders={orders} onToggleDelivery={onUpdateDeliveryPaid}/>
         )}
       </div>
 
@@ -629,10 +560,9 @@ function StaffDashboard({orders,onUpdateDeliveryPaid,onLock,pnlData,pnlFrom,pnlT
 }
 
 
-// ─── STAFF MONTHLY FOLDERS (read-only — no PDF, no invoice) ──────────────────
-function StaffMonthlyFolders({orders}){
-  const[openMonths,setOpenMonths]=React.useState({});
-  const toggleMonth=(key)=>setOpenMonths(prev=>({...prev,[key]:!prev[key]}));
+// ─── STAFF MONTHLY FOLDERS ───────────────────────────────────────────────────
+function StaffMonthlyFolders({orders,onToggleDelivery}){
+  const[expandedId,setExpandedId]=React.useState(null);
   const MONTH_NAMES=["January","February","March","April","May","June","July","August","September","October","November","December"];
 
   const grouped=React.useMemo(()=>{
@@ -652,78 +582,24 @@ function StaffMonthlyFolders({orders}){
     return`${MONTH_NAMES[parseInt(m)-1]} ${y}`;
   };
 
-  const monthStats=(ords)=>{
-    const revenue=ords.reduce((s,o)=>s+orderRevenue(o.products),0);
-    const courierCost=ords.reduce((s,o)=>s+(parseFloat(o.actualDC)||parseFloat(o.deliveryCharge)||0),0);
-    const grandTotal=ords.reduce((s,o)=>{const rev=orderRevenue(o.products);const dc=parseFloat(o.deliveryCharge)||0;return s+(o.deliveryPaid?rev:rev+dc);},0);
-    return{revenue,courierCost,grandTotal};
-  };
-
   if(grouped.length===0)return(
-    <div style={{textAlign:"center",color:"#554444",marginTop:60,fontSize:14,letterSpacing:1}}>NO DELIVERED ORDERS YET</div>
+    <div style={{textAlign:"center",color:"#444",marginTop:60,fontSize:15}}>No orders yet.</div>
   );
 
   return(
-    <div style={{display:"flex",flexWrap:"wrap",gap:16,alignItems:"flex-start"}}>
+    <div>
       {grouped.map(([key,ords])=>{
-        const isOpen=!!openMonths[key];
-        const stats=monthStats(ords);
         const sorted=ords.slice().sort((a,b)=>(b.seq||0)-(a.seq||0));
         return(
-          <div key={key} style={{borderRadius:10,overflow:"hidden",border:"1px solid #2a2a2a",display:"flex",flexDirection:"column",width:"calc(20% - 13px)",minWidth:200,boxSizing:"border-box"}}>
-            <div onClick={()=>toggleMonth(key)} style={{background:"#cc0000",padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <span style={{fontWeight:"bold",fontSize:14,color:"#fff",letterSpacing:0.5}}>📅 {monthLabel(key)}</span>
-              <span style={{background:"rgba(0,0,0,0.25)",color:"#ffcccc",borderRadius:20,padding:"2px 9px",fontSize:11,fontWeight:"bold"}}>{ords.length} orders</span>
+          <div key={key}>
+            <div style={{background:"#cc0000",color:"#fff",padding:"8px 20px",fontWeight:"bold",fontSize:13,marginBottom:2,marginTop:10}}>
+              📅 {monthLabel(key)} — {ords.length} orders
             </div>
-            <div style={{background:"#0d0d0d",padding:"14px 16px",flex:1,display:"flex",flexDirection:"column",gap:10}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Revenue</span>
-                <span style={{fontWeight:"bold",color:"#4488ff",fontSize:14}}>{tk(stats.revenue)}</span>
-              </div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Courier Cost</span>
-                <span style={{fontWeight:"bold",color:"#aaa",fontSize:14}}>{tk(stats.courierCost)}</span>
-              </div>
-              <div style={{borderTop:"1px solid #1e1e1e",paddingTop:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Grand Total</span>
-                <span style={{fontWeight:"bold",color:"#cc0000",fontSize:16}}>{tk(stats.grandTotal)}</span>
-              </div>
-            </div>
-            <div style={{background:"#1a1a1a",padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:"1px solid #2a2a2a"}}>
-              <span onClick={()=>toggleMonth(key)} style={{color:"#555",fontSize:12,cursor:"pointer",userSelect:"none"}}>{isOpen?"▲ Hide orders":"▼ View orders"}</span>
-            </div>
-            {isOpen&&(
-              <div style={{padding:"12px",background:"#0d0d0d",borderTop:"1px solid #1e1e1e"}}>
-                {sorted.map(o=>{
-                  const rev=orderRevenue(o.products),dc=parseFloat(o.deliveryCharge)||0,grand=o.deliveryPaid?rev:rev+dc;
-                  return(
-                    <div key={o.id} style={{background:"#111",border:"1px solid #1e1e1e",borderRadius:8,marginBottom:8,overflow:"hidden"}}>
-                      <div style={{background:"#1a1a1a",padding:"8px 14px",display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:6,alignItems:"center"}}>
-                        <span style={{fontWeight:"bold",color:"#fff",fontSize:13}}>#{o.seq} {o.clientName}</span>
-                        <div style={{display:"flex",gap:10,alignItems:"center",fontSize:12,flexWrap:"wrap"}}>
-                          <span style={{color:"#666"}}>{o.paymentMethod}</span>
-                          {dc>0&&<span style={{color:o.deliveryPaid?"#44cc44":"#cc4444"}}>🚚 {tk(dc)} {o.deliveryPaid?"Paid":"Unpaid"}</span>}
-                          <span style={{color:"#cc0000",fontWeight:"bold"}}>Total: {tk(grand)}</span>
-                        </div>
-                      </div>
-                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                        <thead><tr style={{background:"#0d0d0d"}}>{["Item","Qty","Amount"].map(h=><th key={h} style={{padding:"6px 10px",textAlign:h==="Item"?"left":"right",color:"#555"}}>{h}</th>)}</tr></thead>
-                        <tbody>{o.products.map((p,i)=>(
-                          <tr key={p.id} style={{background:i%2===0?"#111":"#0d0d0d",borderBottom:"1px solid #1a1a1a"}}>
-                            <td style={{padding:"5px 10px",color:"#fff"}}>{p.name||"—"}</td>
-                            <td style={{padding:"5px 10px",color:"#666",textAlign:"right"}}>{p.qty||"—"}</td>
-                            <td style={{padding:"5px 10px",color:"#fff",textAlign:"right"}}>{tk(productTotal(p))}</td>
-                          </tr>
-                        ))}</tbody>
-                        <tfoot>
-                          <tr style={{background:"#cc0000"}}><td colSpan={2} style={{padding:"6px 10px",color:"#fff",fontWeight:"bold"}}>Total</td><td style={{padding:"6px 10px",color:"#fff",fontWeight:"bold",textAlign:"right"}}>{tk(grand)}</td></tr>
-                        </tfoot>
-                      </table>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            {sorted.map(o=>(
+              <StaffOrderCard key={o.id} order={o} expanded={expandedId===o.id}
+                onToggle={()=>setExpandedId(expandedId===o.id?null:o.id)}
+                onToggleDelivery={()=>onToggleDelivery(o.id,!o.deliveryPaid)}/>
+            ))}
           </div>
         );
       })}
@@ -732,171 +608,74 @@ function StaffMonthlyFolders({orders}){
 }
 
 function StaffOrderCard({order:o,expanded,onToggle,onToggleDelivery}){
-  const sc=STAFF_STATUS_COLOR[o.status];
-  const today=todayStr();
-  const isLate=o.deliveryDate&&o.deliveryDate<today&&o.status!=="Delivered";
-  const printSoon=o.printDate&&o.printDate<=addDays(today,1)&&o.status==="Confirmed";
-  const printToday=o.printDate===today&&o.status==="Confirmed";
-  const dc=parseFloat(o.deliveryCharge)||0;
-  const rev=orderRevenue(o.products);
+  const sc=STATUS_COLOR[o.status];
+  const isLate=o.deliveryDate&&o.deliveryDate<todayStr()&&o.status!=="Delivered";
+  const printSoon=o.printDate&&o.printDate<=addDays(todayStr(),1)&&o.status==="Confirmed";
+  const rev=orderRevenue(o.products),dc=parseFloat(o.deliveryCharge)||0;
   const grandTotal=o.deliveryPaid?rev:rev+dc;
-
-  const daysUntilDelivery=o.deliveryDate?Math.round((new Date(o.deliveryDate)-new Date(today))/(1000*60*60*24)):null;
-
   return(
-    <div className="card-enter" style={{background:"rgba(13,13,13,0.9)",border:`1px solid ${isLate?"#cc0000":expanded?"#330000":"#1a1a1a"}`,borderRadius:10,marginBottom:8,overflow:"hidden",transition:"border-color 0.2s",boxShadow:isLate?"0 0 15px rgba(200,0,0,0.15)":expanded?"0 0 20px rgba(200,0,0,0.1)":"none"}}>
-
-      {/* Card Header */}
-      <div onClick={onToggle} style={{display:"flex",alignItems:"center",gap:10,padding:"13px 16px",cursor:"pointer",flexWrap:"wrap"}}>
-        {/* Seq badge */}
-        <div style={{width:34,height:34,background:"rgba(40,0,0,0.4)",border:"1px solid #330000",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:"bold",color:"#883333",flexShrink:0}}>
-          {o.seq}
-        </div>
-        <div style={{flex:1,minWidth:140}}>
+    <div style={{background:"#111",border:`1px solid ${isLate?"#cc0000":"#222"}`,borderRadius:10,marginBottom:10,overflow:"hidden"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",cursor:"pointer",flexWrap:"wrap"}} onClick={onToggle}>
+        <div style={{flex:1,minWidth:160}}>
           <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-            <span style={{fontWeight:"bold",fontSize:14,color:"#cce0f0"}}>{o.clientName||"Unnamed"}</span>
-            {o.phone&&<span style={{color:"#664444",fontSize:11}}>📞 {o.phone}</span>}
-            {isLate&&<span style={{background:"rgba(200,0,0,0.15)",color:"#ff4444",fontSize:10,fontWeight:"bold",padding:"2px 7px",borderRadius:4,letterSpacing:1}}>LATE</span>}
-            {printToday&&<span style={{background:"rgba(255,150,0,0.15)",color:"#ffaa33",fontSize:10,fontWeight:"bold",padding:"2px 7px",borderRadius:4,letterSpacing:1}}>PRINT TODAY</span>}
-            {printSoon&&!printToday&&<span style={{background:"rgba(255,170,0,0.1)",color:"#ffbb44",fontSize:10,fontWeight:"bold",padding:"2px 7px",borderRadius:4,letterSpacing:1}}>PRINT SOON</span>}
+            <span style={{fontWeight:"bold",fontSize:15,color:"#fff"}}>#{o.seq} — {o.clientName||"Unnamed"}</span>
+            {o.phone&&<span style={{color:"#555",fontSize:12}}>📞 {o.phone}</span>}
+            {isLate&&<span style={{color:"#cc0000",fontSize:11,fontWeight:"bold"}}>⚠ LATE</span>}
+            {printSoon&&<span style={{color:"#ffaa00",fontSize:11,fontWeight:"bold"}}>🖨 PRINT SOON</span>}
           </div>
-          <div style={{fontSize:11,color:"#1a4a6a",marginTop:3}}>
-            {o.products.filter(p=>p.name).map(p=>`${p.name}${p.qty?` ×${p.qty}`:""}`).join(", ")||"No products"}
-          </div>
+          <div style={{fontSize:12,color:"#555",marginTop:3}}>{o.products.filter(p=>p.name).map(p=>`${p.name}${p.qty?` ×${p.qty}`:""}`).join(", ")||"No products"}</div>
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-          {/* Status badge */}
-          <span style={{background:sc.badge,color:sc.text,border:`1px solid ${sc.border}`,borderRadius:20,padding:"3px 10px",fontSize:10,fontWeight:"bold",letterSpacing:1}}>{o.status.toUpperCase()}</span>
-          {/* Delivery date */}
-          {o.deliveryDate&&(
-            <span style={{background:"rgba(20,0,0,0.5)",color:daysUntilDelivery!==null&&daysUntilDelivery<0?"#ff5555":daysUntilDelivery===0?"#ffbb33":daysUntilDelivery<=2?"#88dd44":"#2a6a9a",border:"1px solid #1a1a1a",borderRadius:20,padding:"3px 10px",fontSize:11}}>
-              📅 {fmtDateShort(o.deliveryDate)}{daysUntilDelivery!==null&&daysUntilDelivery>=0?` (${daysUntilDelivery}d)`:""}
-            </span>
-          )}
-          {/* Payment */}
-          <span style={{background:"rgba(20,0,0,0.4)",border:"1px solid #1a1a1a",color:"#664444",borderRadius:20,padding:"3px 10px",fontSize:10}}>{o.paymentMethod||"COD"}</span>
-          {/* Delivery fee status */}
-          {dc>0&&(
-            <span style={{background:o.deliveryPaid?"rgba(0,80,30,0.3)":"rgba(80,0,0,0.3)",color:o.deliveryPaid?"#44cc66":"#cc4444",border:`1px solid ${o.deliveryPaid?"#003320":"#330000"}`,borderRadius:20,padding:"3px 10px",fontSize:10,fontWeight:"bold"}}>
-              🚚 {o.deliveryPaid?"PAID":"UNPAID"}
-            </span>
-          )}
-          <span style={{color:"#cce0f0",fontSize:13,fontWeight:"bold"}}>BDT {Number(grandTotal).toFixed(0)}</span>
-          <span style={{color:"#1a4a6a",fontSize:14,marginLeft:4}}>{expanded?"▲":"▼"}</span>
+          <span style={{background:sc.bg,color:sc.text,border:`1px solid ${sc.border}`,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:"bold"}}>{o.status}</span>
+          <span style={{background:"#1a1a1a",border:"1px solid #333",color:"#aaa",borderRadius:20,padding:"3px 10px",fontSize:11}}>{o.paymentMethod||"COD"}</span>
+          {dc>0&&<span style={{background:o.deliveryPaid?"#0a2a0a":"#2a0a0a",color:o.deliveryPaid?"#44cc44":"#cc4444",border:`1px solid ${o.deliveryPaid?"#005500":"#550000"}`,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:"bold"}}>🚚 {tk(dc)} {o.deliveryPaid?"Paid":"Unpaid"}</span>}
+          <span style={{color:"#fff",fontSize:13,fontWeight:"bold"}}>Total: {tk(grandTotal)}</span>
+          {o.deliveryDate&&<span style={{color:"#555",fontSize:12}}>Del: {fmtDate(o.deliveryDate)}</span>}
         </div>
       </div>
-
-      {/* Expanded Details */}
       {expanded&&(
-        <div style={{borderTop:"1px solid #050f18",padding:"16px 18px",background:"rgba(0,5,15,0.5)"}}>
-
-          {/* Info grid */}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:10,marginBottom:16}}>
-            <InfoBox label="ORDER DATE" value={fmtDate(o.orderDate)} icon="📋"/>
-            {o.printDate&&<InfoBox label="PRINT DATE" value={fmtDate(o.printDate)} icon="🖨️" highlight={o.printDate===today}/>}
-            {o.deliveryDate&&<InfoBox label="DELIVERY DATE" value={fmtDate(o.deliveryDate)} icon="📦" highlight={daysUntilDelivery!==null&&daysUntilDelivery<=1&&daysUntilDelivery>=0}/>}
-            {o.address&&<InfoBox label="ADDRESS" value={o.address} icon="📍"/>}
-            {o.invoiceNum&&<InfoBox label="INVOICE #" value={o.invoiceNum} icon="🧾"/>}
-            <InfoBox label="PAYMENT" value={o.paymentMethod||"COD"} icon="💳"/>
+        <div style={{borderTop:"1px solid #1e1e1e",padding:"12px 14px",background:"#0d0d0d"}}>
+          <div style={{display:"flex",gap:20,flexWrap:"wrap",marginBottom:12,fontSize:13,color:"#888"}}>
+            <Info label="Order Date" value={fmtDate(o.orderDate)}/>
+            {o.printDate&&<Info label="Print Date" value={fmtDate(o.printDate)}/>}
+            {o.address&&<Info label="Address" value={o.address}/>}
+            {o.invoiceNum&&<Info label="Invoice #" value={o.invoiceNum}/>}
           </div>
-
-          {/* Products table */}
-          <div style={{overflowX:"auto",marginBottom:14}}>
-            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-              <thead>
-                <tr style={{background:"rgba(0,60,100,0.3)"}}>
-                  {["ITEM","QTY","RATE","AMOUNT"].map((h,i)=>(
-                    <th key={h} style={{padding:"8px 12px",textAlign:i===0?"left":"right",color:"#884444",letterSpacing:1,fontWeight:"bold",borderBottom:"1px solid #1a1a1a"}}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {o.products.map((p,i)=>(
-                  <tr key={p.id} style={{background:i%2===0?"rgba(0,10,25,0.5)":"rgba(0,5,15,0.3)",borderBottom:"1px solid #050f18"}}>
-                    <td style={{padding:"8px 12px",color:"#aaccdd",fontWeight:"bold"}}>{p.name||"—"}</td>
-                    <td style={{padding:"8px 12px",color:"#774444",textAlign:"right"}}>{p.qty||"—"}</td>
-                    <td style={{padding:"8px 12px",color:"#774444",textAlign:"right"}}>{p.unitPrice?`BDT ${parseFloat(p.unitPrice).toFixed(2)}`:"—"}</td>
-                    <td style={{padding:"8px 12px",color:"#99ccdd",textAlign:"right",fontWeight:"bold"}}>{tk(productTotal(p))}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                {dc>0&&!o.deliveryPaid&&(
-                  <tr style={{background:"rgba(20,0,0,0.3)"}}>
-                    <td colSpan={3} style={{padding:"7px 12px",color:"#664444",fontStyle:"italic"}}>🚚 Delivery Fee</td>
-                    <td style={{padding:"7px 12px",color:"#774444",textAlign:"right"}}>{tk(dc)}</td>
-                  </tr>
-                )}
-                <tr style={{background:"rgba(0,80,150,0.15)"}}>
-                  <td colSpan={3} style={{padding:"10px 12px",color:"#55aadd",fontWeight:"bold",letterSpacing:1}}>GRAND TOTAL</td>
-                  <td style={{padding:"10px 12px",color:"#88ccff",fontWeight:"bold",textAlign:"right",fontSize:14}}>{tk(grandTotal)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          {/* Delivery payment toggle */}
           {dc>0&&(
-            <div style={{display:"flex",alignItems:"center",gap:12,background:o.deliveryPaid?"rgba(0,80,30,0.15)":"rgba(80,0,0,0.1)",border:`1px solid ${o.deliveryPaid?"#003320":"#330000"}`,borderRadius:8,padding:"12px 16px",marginBottom:12}}>
-              <span style={{fontSize:13,color:"#5a9ab0",flex:1}}>
-                🚚 Delivery fee: <strong style={{color:"#aaccdd"}}>{tk(dc)}</strong>
-              </span>
-              <span style={{fontWeight:"bold",fontSize:13,color:o.deliveryPaid?"#44cc66":"#cc4444",marginRight:8}}>
-                {o.deliveryPaid?"✅ Paid":"❌ Unpaid"}
-              </span>
-              <button onClick={(e)=>{e.stopPropagation();onToggleDelivery();}}
-                style={{background:o.deliveryPaid?"rgba(80,0,0,0.3)":"rgba(0,80,30,0.3)",color:o.deliveryPaid?"#cc4444":"#44cc66",border:`1px solid ${o.deliveryPaid?"#550000":"#005520"}`,borderRadius:6,padding:"6px 14px",cursor:"pointer",fontSize:11,fontWeight:"bold",letterSpacing:1,transition:"all 0.15s"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,padding:"8px 12px",borderRadius:8,background:"#1a1a1a",border:`1px solid ${o.deliveryPaid?"#005500":"#550000"}`}}>
+              <span style={{color:"#aaa",fontSize:13}}>🚚 Delivery: <strong style={{color:"#fff"}}>{tk(dc)}</strong></span>
+              <span style={{marginLeft:"auto",fontWeight:"bold",color:o.deliveryPaid?"#44cc44":"#cc4444"}}>{o.deliveryPaid?"✅ Paid":"❌ Unpaid"}</span>
+              <button onClick={e=>{e.stopPropagation();onToggleDelivery();}}
+                style={{background:o.deliveryPaid?"rgba(80,0,0,0.3)":"rgba(0,80,30,0.3)",color:o.deliveryPaid?"#cc4444":"#44cc66",border:`1px solid ${o.deliveryPaid?"#550000":"#005520"}`,borderRadius:6,padding:"6px 14px",cursor:"pointer",fontSize:11,fontWeight:"bold",letterSpacing:1}}>
                 MARK {o.deliveryPaid?"UNPAID":"PAID"}
               </button>
             </div>
           )}
-
-          {/* Notes */}
-          {o.notes&&(
-            <div style={{background:"rgba(255,200,0,0.04)",border:"1px solid #2a2a00",borderRadius:6,padding:"8px 12px",fontSize:12,color:"#6a6a40",marginBottom:12}}>
-              📝 {o.notes}
-            </div>
-          )}
-
-          {/* Stage progress */}
-          <div style={{display:"flex",alignItems:"center",gap:0,marginTop:4}}>
-            {STATUS_FLOW.map((s,i)=>{
-              const sc=STAFF_STATUS_COLOR[s];
-              const active=STATUS_FLOW.indexOf(o.status)>=i;
-              const current=o.status===s;
-              return(
-                <React.Fragment key={s}>
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",flex:1}}>
-                    <div style={{width:28,height:28,borderRadius:"50%",background:active?sc.badge:"rgba(20,0,0,0.3)",border:`2px solid ${active?sc.border:"#1a1a1a"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:active?sc.text:"#4a1a1a",fontWeight:"bold",boxShadow:current?`0 0 10px ${sc.border}`:"none",transition:"all 0.3s"}}>
-                      {active?"✓":i+1}
-                    </div>
-                    <div style={{fontSize:9,color:active?sc.text:"#4a1a1a",marginTop:4,letterSpacing:0.5,textAlign:"center"}}>{s.toUpperCase()}</div>
-                  </div>
-                  {i<STATUS_FLOW.length-1&&(
-                    <div style={{flex:1,height:2,background:STATUS_FLOW.indexOf(o.status)>i?"rgba(204,0,0,0.4)":"rgba(40,0,0,0.4)",marginBottom:18,transition:"background 0.3s"}}/>
-                  )}
-                </React.Fragment>
-              );
-            })}
+          <div style={{overflowX:"auto",marginBottom:12}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+              <thead><tr style={{background:"#cc0000",color:"#fff"}}>{["Item","Qty","Rate","Amount"].map(h=><th key={h} style={{padding:"7px 12px",textAlign:h==="Item"?"left":"right"}}>{h}</th>)}</tr></thead>
+              <tbody>{o.products.map((p,i)=>(
+                <tr key={p.id} style={{background:i%2===0?"#111":"#161616",borderBottom:"1px solid #1e1e1e"}}>
+                  <td style={{padding:"7px 12px",color:"#fff",fontWeight:"bold"}}>{p.name||"—"}</td>
+                  <td style={{padding:"7px 12px",color:"#aaa",textAlign:"right"}}>{p.qty||"—"}</td>
+                  <td style={{padding:"7px 12px",color:"#aaa",textAlign:"right"}}>{p.unitPrice?tk(parseFloat(p.unitPrice)):"—"}</td>
+                  <td style={{padding:"7px 12px",color:"#fff",textAlign:"right",fontWeight:"bold"}}>{tk(productTotal(p))}</td>
+                </tr>
+              ))}</tbody>
+              <tfoot>
+                {dc>0&&!o.deliveryPaid&&<tr style={{background:"#1a1a1a"}}><td colSpan={3} style={{padding:"7px 12px",color:"#888",fontStyle:"italic"}}>Delivery Fees</td><td style={{padding:"7px 12px",color:"#aaa",textAlign:"right"}}>{tk(dc)}</td></tr>}
+                <tr style={{background:"#cc0000"}}><td colSpan={3} style={{padding:"7px 12px",color:"#fff",fontWeight:"bold"}}>Total</td><td style={{padding:"7px 12px",color:"#fff",textAlign:"right",fontWeight:"bold"}}>{tk(grandTotal)}</td></tr>
+              </tfoot>
+            </table>
           </div>
-          {/* Steadfast */}
-          <div style={{marginTop:12}}>
-            <SteadfastButton order={o} grandTotal={grandTotal}/>
-          </div>
+          {o.notes&&<div style={{fontSize:13,color:"#888",marginBottom:10,background:"#1a1a00",padding:"7px 10px",borderRadius:6,border:"1px solid #333300"}}>📝 {o.notes}</div>}
+          <SteadfastButton order={o} grandTotal={grandTotal}/>
         </div>
       )}
     </div>
   );
 }
 
-function InfoBox({label,value,icon,highlight}){
-  return(
-    <div style={{background:highlight?"rgba(255,170,0,0.06)":"rgba(0,10,25,0.5)",border:`1px solid ${highlight?"#332200":"#050f18"}`,borderRadius:8,padding:"8px 12px"}}>
-      <div style={{fontSize:9,color:highlight?"#664400":"#1a4a6a",letterSpacing:1,marginBottom:3}}>{icon} {label}</div>
-      <div style={{fontSize:12,color:highlight?"#ffbb44":"#99bbcc",fontWeight:"bold"}}>{value}</div>
-    </div>
-  );
-}
 
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
 function App(){
@@ -1274,8 +1053,13 @@ function SteadfastButton({order:o,grandTotal}){
       const data=await res.json();
       if(res.ok&&(data.status===200||data.consignment)){
         setStatus("ok");
-        const tid=data.consignment?.tracking_code||data.tracking_code||"";
-        setMsg(tid?"Booked! Tracking: "+tid:"Booked successfully!");
+        const c=data.consignment||{};
+        const tid=c.tracking_code||data.tracking_code||"";
+        const pid=c.id||c.consignment_id||data.consignment_id||"";
+        const parts=[];
+        if(pid)parts.push("Parcel ID: "+pid);
+        if(tid)parts.push("Tracking: "+tid);
+        setMsg(parts.length?"Booked! "+parts.join(" · "):"Booked successfully!");
       }else{
         setStatus("err");
         setMsg(data.message||(typeof data.errors==="string"?data.errors:JSON.stringify(data.errors))||"Steadfast error.");
