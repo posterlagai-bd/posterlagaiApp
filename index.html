@@ -791,6 +791,7 @@ function App(){
   const[fbReady,setFbReady]=useState(!!window.__firebaseReady);
   const[view,setView]=useState("orders");
   const[filterStatus,setFilterStatus]=useState("All");
+  const[filterUnpaidDC,setFilterUnpaidDC]=useState(false);
   const[search,setSearch]=useState("");
   const[showForm,setShowForm]=useState(false);
   const[draft,setDraft]=useState(null);
@@ -872,7 +873,8 @@ function App(){
   const visible=orders.filter(o=>{
     const ms=filterStatus==="All"||o.status===filterStatus;
     const mq=!search||o.clientName.toLowerCase().includes(search.toLowerCase())||o.products.some(p=>p.name.toLowerCase().includes(search.toLowerCase()));
-    return ms&&mq;
+    const mu=!filterUnpaidDC||(parseFloat(o.deliveryCharge)>0&&!o.deliveryPaid);
+    return ms&&mq&&mu;
   }).slice().sort((a,b)=>{
     if(filterStatus==="Delivered"){
       const ai=parseInt((a.invoiceNum||"").replace(/\D/g,""))||0;
@@ -956,6 +958,9 @@ function App(){
                 );
               })}
               {filterStatus!=="All"&&<div onClick={()=>setFilterStatus("All")} style={{background:"#1a1a1a",border:"1px solid #333",color:"#666",borderRadius:8,padding:"5px 12px",fontSize:12,cursor:"pointer",userSelect:"none"}}>✕ All</div>}
+              <div onClick={()=>setFilterUnpaidDC(f=>!f)} style={{background:filterUnpaidDC?"#2a0a0a":"#1a1a1a",border:`1px solid ${filterUnpaidDC?"#cc4444":"#333"}`,color:filterUnpaidDC?"#ff4444":"#555",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:"bold",cursor:"pointer",transition:"all 0.15s",userSelect:"none",marginLeft:"auto"}}>
+                🚚 Unpaid DC: {orders.filter(o=>parseFloat(o.deliveryCharge)>0&&!o.deliveryPaid).length}
+              </div>
             </div>
             {visible.length===0&&<div style={{textAlign:"center",color:"#444",marginTop:60,fontSize:15}}>No orders yet. Add one above!</div>}
             {visible.map(o=>(
@@ -1446,44 +1451,170 @@ function PnlView({data,from,to,onFromChange,onToChange,onPrintOrder}){
       </div>
       {data.orders.length===0
         ?<div style={{textAlign:"center",color:"#333",marginTop:40}}>No delivered orders for this period.</div>
-        :data.orders.slice().sort((a,b)=>{
-            const ai=parseInt((a.invoiceNum||"").replace(/\D/g,""))||0;
-            const bi=parseInt((b.invoiceNum||"").replace(/\D/g,""))||0;
-            return bi-ai;
-          }).map(o=>{
-          const rev=orderRevenue(o.products),dc=parseFloat(o.deliveryCharge)||0,grand=o.deliveryPaid?rev:rev+dc;
-          const cost=orderCost(o.products),profit=orderProfit(o.products,o.deliveryCharge,o.deliveryPaid,o.actualDC);
-          return(
-            <div key={o.id} style={{background:"#111",border:"1px solid #1e1e1e",borderRadius:10,marginBottom:12,overflow:"hidden"}}>
-              <div style={{background:"#1a1a1a",padding:"8px 14px",display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:6,alignItems:"center"}}>
-                <span style={{fontWeight:"bold",color:"#fff"}}>#{o.seq} {o.clientName}</span>
-                <div style={{display:"flex",gap:10,alignItems:"center",fontSize:12,flexWrap:"wrap"}}>
-                  <span style={{color:"#666"}}>{o.paymentMethod}</span>
-                  {cost>0&&<span style={{color:"#aaa"}}>Cost: {tk(cost)}</span>}
-                  <span style={{color:profit>=0?"#44cc44":"#cc4444"}}>Profit: {tk(profit)}</span>
-                  {dc>0&&<span style={{color:o.deliveryPaid?"#44cc44":"#cc4444"}}>🚚 {tk(dc)} {o.deliveryPaid?"Paid":"Unpaid"}</span>}
-                  <span style={{color:"#cc0000",fontWeight:"bold"}}>Total: {tk(grand)}</span>
-                  <button onClick={()=>onPrintOrder(o)} style={bS("#1a1a1a","#fff",11,"#333")}>🖨️ Invoice</button>
-                </div>
+        :<MonthlyFolders orders={data.orders} onPrintOrder={onPrintOrder}/>}
+    </div>
+  );
+}
+
+function MonthlyFolders({orders,onPrintOrder}){
+  const[openMonth,setOpenMonth]=React.useState(null);
+  const MONTH_NAMES=["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+  // Group orders by year-month
+  const grouped=React.useMemo(()=>{
+    const map={};
+    orders.forEach(o=>{
+      const d=o.deliveryDate||o.orderDate;
+      if(!d)return;
+      const key=d.slice(0,7); // "2026-05"
+      if(!map[key])map[key]=[];
+      map[key].push(o);
+    });
+    // Sort months descending
+    return Object.entries(map).sort((a,b)=>b[0].localeCompare(a[0]));
+  },[orders]);
+
+  const monthLabel=(key)=>{
+    const[y,m]=key.split("-");
+    return`${MONTH_NAMES[parseInt(m)-1]} ${y}`;
+  };
+
+  const monthStats=(ords)=>{
+    const revenue=ords.reduce((s,o)=>s+orderRevenue(o.products),0);
+    const profit=ords.reduce((s,o)=>s+orderProfit(o.products,o.deliveryCharge,o.deliveryPaid,o.actualDC),0);
+    const courierCost=ords.reduce((s,o)=>s+(parseFloat(o.actualDC)||parseFloat(o.deliveryCharge)||0),0);
+    const grandTotal=ords.reduce((s,o)=>{const rev=orderRevenue(o.products);const dc=parseFloat(o.deliveryCharge)||0;return s+(o.deliveryPaid?rev:rev+dc);},0);
+    return{revenue,profit,courierCost,grandTotal};
+  };
+
+  const downloadMonthPDF=(key,ords)=>{
+    const label=monthLabel(key);
+    const stats=monthStats(ords);
+    const sorted=ords.slice().sort((a,b)=>{
+      const ai=parseInt((a.invoiceNum||"").replace(/\D/g,""))||0;
+      const bi=parseInt((b.invoiceNum||"").replace(/\D/g,""))||0;
+      return ai-bi;
+    });
+
+    const logoUrl=LOGO_URL;
+    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+    <style>
+      body{font-family:Georgia,serif;background:#fff;color:#111;padding:32px;max-width:750px;margin:auto;}
+      .header{display:flex;align-items:center;gap:16px;margin-bottom:8px;}
+      .logo{width:52px;height:52px;}
+      .biz{font-size:22px;font-weight:bold;color:#cc0000;letter-spacing:1px;}
+      .sub{font-size:12px;color:#888;letter-spacing:2px;}
+      .month-title{font-size:18px;font-weight:bold;margin:18px 0 12px;border-bottom:2px solid #cc0000;padding-bottom:6px;color:#cc0000;}
+      .summary{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;}
+      .scard{border:1px solid #ddd;border-radius:8px;padding:10px 16px;flex:1;min-width:120px;text-align:center;}
+      .scard-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+      .scard-val{font-size:16px;font-weight:bold;}
+      table{width:100%;border-collapse:collapse;font-size:13px;}
+      th{background:#cc0000;color:#fff;padding:8px 10px;text-align:left;}
+      th:last-child{text-align:right;}
+      td{padding:7px 10px;border-bottom:1px solid #eee;}
+      td:last-child{text-align:right;font-weight:bold;}
+      tr:nth-child(even){background:#f9f9f9;}
+      .footer{margin-top:24px;font-size:10px;color:#aaa;text-align:center;letter-spacing:1px;}
+    </style></head><body>
+    <div class="header">
+      <img class="logo" src="${logoUrl}"/>
+      <div><div class="biz">Poster Lagai</div><div class="sub">ORDER MANAGEMENT SYSTEM · DHAKA</div></div>
+    </div>
+    <div class="month-title">📅 ${label} — Monthly Report</div>
+    <div class="summary">
+      <div class="scard"><div class="scard-label">Revenue</div><div class="scard-val" style="color:#2255cc">BDT ${stats.revenue.toFixed(2)}</div></div>
+      <div class="scard"><div class="scard-label">Courier Cost</div><div class="scard-val" style="color:#888">BDT ${stats.courierCost.toFixed(2)}</div></div>
+      <div class="scard"><div class="scard-label">Profit</div><div class="scard-val" style="color:${stats.profit>=0?"#22aa44":"#cc2222"}">BDT ${stats.profit.toFixed(2)}</div></div>
+      <div class="scard"><div class="scard-label">Grand Total</div><div class="scard-val" style="color:#cc0000">BDT ${stats.grandTotal.toFixed(2)}</div></div>
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>Client</th><th>Items</th><th>Total</th></tr></thead>
+      <tbody>
+        ${sorted.map(o=>{
+          const grand=o.deliveryPaid?orderRevenue(o.products):orderRevenue(o.products)+(parseFloat(o.deliveryCharge)||0);
+          const items=o.products.filter(p=>p.name).map(p=>`${p.name}${p.qty?` ×${p.qty}`:""}`).join(", ")||"—";
+          return`<tr><td>#${o.seq}</td><td>${o.clientName||"—"}</td><td>${items}</td><td>BDT ${grand.toFixed(2)}</td></tr>`;
+        }).join("")}
+      </tbody>
+    </table>
+    <div class="footer">Poster Lagai · ${label} · Generated ${new Date().toLocaleDateString("en-GB")} · Total Orders: ${sorted.length}</div>
+    </body></html>`;
+
+    const win=window.open("","_blank");
+    win.document.write(html);
+    win.document.close();
+    setTimeout(()=>win.print(),600);
+  };
+
+  return(
+    <div>
+      {grouped.map(([key,ords])=>{
+        const isOpen=openMonth===key;
+        const stats=monthStats(ords);
+        const sorted=ords.slice().sort((a,b)=>{
+          const ai=parseInt((a.invoiceNum||"").replace(/\D/g,""))||0;
+          const bi=parseInt((b.invoiceNum||"").replace(/\D/g,""))||0;
+          return bi-ai;
+        });
+        return(
+          <div key={key} style={{marginBottom:12,border:`1px solid ${isOpen?"#cc0000":"#1e1e1e"}`,borderRadius:10,overflow:"hidden",transition:"border-color 0.2s"}}>
+            {/* Month header */}
+            <div onClick={()=>setOpenMonth(isOpen?null:key)} style={{background:isOpen?"#1a0000":"#111",padding:"12px 16px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:16,fontWeight:"bold",color:isOpen?"#cc0000":"#fff"}}>📁 {monthLabel(key)}</span>
+                <span style={{background:"#1a1a1a",border:"1px solid #333",color:"#666",borderRadius:20,padding:"2px 10px",fontSize:11}}>{ords.length} orders</span>
               </div>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                <thead><tr style={{background:"#0d0d0d"}}>{["Item","Qty","Rate","Amount"].map(h=><th key={h} style={{padding:"6px 12px",textAlign:h==="Item"?"left":"right",color:"#555"}}>{h}</th>)}</tr></thead>
-                <tbody>{o.products.map((p,i)=>(
-                  <tr key={p.id} style={{background:i%2===0?"#111":"#0d0d0d",borderBottom:"1px solid #1a1a1a"}}>
-                    <td style={{padding:"6px 12px",color:"#fff",fontWeight:"bold"}}>{p.name||"—"}</td>
-                    <td style={{padding:"6px 12px",color:"#666",textAlign:"right"}}>{p.qty||"—"}</td>
-                    <td style={{padding:"6px 12px",color:"#666",textAlign:"right"}}>{p.unitPrice?tk(parseFloat(p.unitPrice)):"—"}</td>
-                    <td style={{padding:"6px 12px",color:"#fff",textAlign:"right"}}>{tk(productTotal(p))}</td>
-                  </tr>
-                ))}</tbody>
-                <tfoot>
-                  {dc>0&&!o.deliveryPaid&&<tr style={{background:"#0d0d0d"}}><td colSpan={3} style={{padding:"6px 12px",color:"#555"}}>Delivery</td><td style={{padding:"6px 12px",color:"#888",textAlign:"right"}}>{tk(dc)}</td></tr>}
-                  <tr style={{background:"#cc0000"}}><td colSpan={3} style={{padding:"7px 12px",color:"#fff",fontWeight:"bold"}}>Total</td><td style={{padding:"7px 12px",color:"#fff",fontWeight:"bold",textAlign:"right"}}>{tk(grand)}</td></tr>
-                </tfoot>
-              </table>
+              <div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+                <span style={{fontSize:12,color:"#4488ff"}}>Rev: {tk(stats.revenue)}</span>
+                <span style={{fontSize:12,color:stats.profit>=0?"#44cc44":"#cc4444"}}>Profit: {tk(stats.profit)}</span>
+                <span style={{fontSize:12,color:"#cc0000",fontWeight:"bold"}}>Total: {tk(stats.grandTotal)}</span>
+                <button onClick={e=>{e.stopPropagation();downloadMonthPDF(key,ords);}} style={{...bS("#cc0000","#fff",11),padding:"5px 12px"}}>⬇ PDF</button>
+                <span style={{color:"#444",fontSize:14}}>{isOpen?"▲":"▼"}</span>
+              </div>
             </div>
-          );
-        })}
+            {/* Orders inside */}
+            {isOpen&&(
+              <div style={{padding:"12px",background:"#0d0d0d"}}>
+                {sorted.map(o=>{
+                  const rev=orderRevenue(o.products),dc=parseFloat(o.deliveryCharge)||0,grand=o.deliveryPaid?rev:rev+dc;
+                  const cost=orderCost(o.products),profit=orderProfit(o.products,o.deliveryCharge,o.deliveryPaid,o.actualDC);
+                  return(
+                    <div key={o.id} style={{background:"#111",border:"1px solid #1e1e1e",borderRadius:10,marginBottom:10,overflow:"hidden"}}>
+                      <div style={{background:"#1a1a1a",padding:"8px 14px",display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:6,alignItems:"center"}}>
+                        <span style={{fontWeight:"bold",color:"#fff"}}>#{o.seq} {o.clientName}</span>
+                        <div style={{display:"flex",gap:10,alignItems:"center",fontSize:12,flexWrap:"wrap"}}>
+                          <span style={{color:"#666"}}>{o.paymentMethod}</span>
+                          {cost>0&&<span style={{color:"#aaa"}}>Cost: {tk(cost)}</span>}
+                          <span style={{color:profit>=0?"#44cc44":"#cc4444"}}>Profit: {tk(profit)}</span>
+                          {dc>0&&<span style={{color:o.deliveryPaid?"#44cc44":"#cc4444"}}>🚚 {tk(dc)} {o.deliveryPaid?"Paid":"Unpaid"}</span>}
+                          <span style={{color:"#cc0000",fontWeight:"bold"}}>Total: {tk(grand)}</span>
+                          <button onClick={()=>onPrintOrder(o)} style={bS("#1a1a1a","#fff",11,"#333")}>🖨️ Invoice</button>
+                        </div>
+                      </div>
+                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                        <thead><tr style={{background:"#0d0d0d"}}>{["Item","Qty","Rate","Amount"].map(h=><th key={h} style={{padding:"6px 12px",textAlign:h==="Item"?"left":"right",color:"#555"}}>{h}</th>)}</tr></thead>
+                        <tbody>{o.products.map((p,i)=>(
+                          <tr key={p.id} style={{background:i%2===0?"#111":"#0d0d0d",borderBottom:"1px solid #1a1a1a"}}>
+                            <td style={{padding:"6px 12px",color:"#fff",fontWeight:"bold"}}>{p.name||"—"}</td>
+                            <td style={{padding:"6px 12px",color:"#666",textAlign:"right"}}>{p.qty||"—"}</td>
+                            <td style={{padding:"6px 12px",color:"#666",textAlign:"right"}}>{p.unitPrice?tk(parseFloat(p.unitPrice)):"—"}</td>
+                            <td style={{padding:"6px 12px",color:"#fff",textAlign:"right"}}>{tk(productTotal(p))}</td>
+                          </tr>
+                        ))}</tbody>
+                        <tfoot>
+                          {dc>0&&!o.deliveryPaid&&<tr style={{background:"#0d0d0d"}}><td colSpan={3} style={{padding:"6px 12px",color:"#555"}}>Delivery</td><td style={{padding:"6px 12px",color:"#888",textAlign:"right"}}>{tk(dc)}</td></tr>}
+                          <tr style={{background:"#cc0000"}}><td colSpan={3} style={{padding:"7px 12px",color:"#fff",fontWeight:"bold"}}>Total</td><td style={{padding:"7px 12px",color:"#fff",fontWeight:"bold",textAlign:"right"}}>{tk(grand)}</td></tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
