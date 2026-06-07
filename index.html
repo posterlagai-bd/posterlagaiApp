@@ -1054,9 +1054,11 @@ function SteadfastButton({order:o,grandTotal,onUpdate}){
       const c=data.consignment||null;
       const trackingCode=(c&&c.tracking_code)||"";
       const parcelId=(c&&(c.consignment_id||c.id))||"";
+      // public_link is returned by status_by_cid and merged in by the Worker
+      const publicLink=(c&&(c.public_link||c.tracking_link||c.public_tracking_link||c.link))||"";
       const isRealSuccess=data.status===200&&c&&(trackingCode||parcelId);
       if(isRealSuccess){
-        const info={trackingCode,parcelId,bookedAt:new Date().toISOString()};
+        const info={trackingCode,parcelId,publicLink,bookedAt:new Date().toISOString()};
         setConsignment(info);
         setStatus("ok");
         // Persist to Firestore so it survives refresh
@@ -1107,7 +1109,7 @@ function SteadfastButton({order:o,grandTotal,onUpdate}){
         ?<div style={{background:"#0a2a0a",border:"1px solid #005500",borderRadius:6,padding:"8px 12px",fontSize:12,color:"#44cc44",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
           <span>✅ Booked on Steadfast</span>
           {consignment.parcelId&&<CopyField label="Parcel ID" value={String(consignment.parcelId)}/>}
-          {consignment.trackingCode&&<CopyField label="Tracking" value={consignment.trackingCode} link={`https://steadfast.com.bd/tl/${consignment.trackingCode}`}/>}
+          {consignment.trackingCode&&<CopyField label="Tracking" value={consignment.trackingCode} link={consignment.publicLink||`https://steadfast.com.bd/tl/${consignment.trackingCode}`}/>}
           {!unbookConfirm
             ?<button onClick={()=>setUnbookConfirm(true)} title="Unbook" style={{marginLeft:"auto",...bS("#1a0000","#cc4444",11,"#330000"),padding:"3px 8px"}}>✕ Unbook</button>
             :<div style={{marginLeft:"auto",display:"flex",flexDirection:"column",gap:6,background:"#1a0000",border:"1px solid #550000",borderRadius:6,padding:"8px 10px",maxWidth:260}}>
