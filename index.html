@@ -468,7 +468,7 @@ function StaffDashboard({orders,user,onUpdateDeliveryPaid,onUpdate,onLock,pnlDat
             <button onClick={()=>setStaffTab("pnl")} style={{background:staffTab==="pnl"?"#1a001a":"rgba(20,0,0,0.6)",color:staffTab==="pnl"?"#cc88ff":"#554444",border:`1px solid ${staffTab==="pnl"?"#550088":"#2a1010"}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontWeight:"bold"}}>📊 P&L</button>
           </div>
           <div style={{background:"rgba(80,0,0,0.2)",border:"1px solid #330000",borderRadius:20,padding:"4px 14px",fontSize:11,color:"#aa4444",letterSpacing:1}}>{new Date().toLocaleDateString("en-BD",{weekday:"short",day:"numeric",month:"short"})}</div>
-          <span style={{fontSize:12,background:"#1a1a1a",border:"1px solid #cc0000",padding:"4px 10px",borderRadius:20,color:"#cc0000"}}>{user&&user.label} ✓</span>
+          <span style={{fontSize:12,background:"#1a1a1a",border:"1px solid #0088cc",padding:"4px 10px",borderRadius:20,color:"#0088cc"}}>{user&&user.label} ✓</span>
           <button onClick={onLock} style={{background:"rgba(200,0,0,0.1)",color:"#cc4444",border:"1px solid #330000",borderRadius:6,padding:"5px 14px",cursor:"pointer",fontSize:11,fontWeight:"bold",letterSpacing:1}}>LOCK</button>
         </div>
       </div>
@@ -730,10 +730,11 @@ function App(){
   },[fbReady]);
 
   const updateOrder=async(id,patch)=>{
+    const isUIOnly=Object.keys(patch).length===1&&"expanded"in patch;
     setOrders(prev=>prev.map(o=>{
       if(o.id!==id)return o;
       const updated={...o,...patch};
-      saveOrderToFS(updated);
+      if(!isUIOnly)saveOrderToFS(updated);
       return updated;
     }));
   };
