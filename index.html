@@ -92,7 +92,7 @@ const STAFF_STATUS_COLOR={
 const PAYMENT_METHODS=["COD","Bkash","Nagad","Cash"];
 const getUsers=()=>[
   {id:"owner1",label:"Owner",pin:localStorage.getItem("pin_owner")||"3860",role:"owner"},
-  {id:"staff1",label:"Staff",pin:localStorage.getItem("pin_staff")||"6969",role:"staff"},
+  {id:"staff1",label:"কেরানি",pin:localStorage.getItem("pin_staff")||"6969",role:"staff"},
 ];
 const USERS=getUsers();
 
@@ -1752,7 +1752,7 @@ function DevView(){
     if(step2Pin.length!==4){setStep2Err("PIN must be 4 digits");return;}
     if(step2Pin!==step2Confirm){setStep2Err("PINs don't match");return;}
     localStorage.setItem(`pin_${role}`,step2Pin);
-    setStep2Ok(`${role==="owner"?"Owner":"Staff"} PIN updated!`);
+    setStep2Ok(`${role==="owner"?"Owner":"কেরানি"} PIN updated!`);
     setStep2Pin("");setStep2Confirm("");setStep2Err("");setChanging(null);
     setTimeout(()=>setStep2Ok(""),3000);
   };
@@ -1802,7 +1802,7 @@ function DevView(){
                 </div>
               ):(
                 <div>
-                  <div style={{color:"#aaa",fontSize:13,marginBottom:12}}>New {changing==="owner"?"Owner":"Staff"} PIN</div>
+                  <div style={{color:"#aaa",fontSize:13,marginBottom:12}}>New {changing==="owner"?"Owner":"কেরানি"} PIN</div>
                   <div style={{display:"flex",flexDirection:"column",gap:10}}>
                     <input type="password" maxLength={4} value={step2Pin} onChange={e=>setStep2Pin(e.target.value.replace(/\D/g,""))}
                       placeholder="New 4-digit PIN" style={{...iS(),letterSpacing:6,textAlign:"center",fontSize:18}}/>
