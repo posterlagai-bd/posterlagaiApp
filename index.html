@@ -631,6 +631,7 @@ function StaffOrderCard({order:o,expanded,onToggle,onToggleDelivery,onUpdate}){
             {o.phone&&<span style={{color:"#555",fontSize:12}}>📞 {o.phone}</span>}
             {isLate&&<span style={{color:"#cc0000",fontSize:11,fontWeight:"bold"}}>⚠ LATE</span>}
             {printSoon&&<span style={{color:"#ffaa00",fontSize:11,fontWeight:"bold"}}>🖨 PRINT SOON</span>}
+            {o.source==="website"&&<span style={{background:"#0a1a2a",color:"#4499ff",border:"1px solid #1a3a5a",borderRadius:20,padding:"2px 8px",fontSize:11,fontWeight:"bold"}}>🌐 Web</span>}
           </div>
           <div style={{fontSize:12,color:"#555",marginTop:3}}>{o.products.filter(p=>p.name).map(p=>`${p.name}${p.qty?` ×${p.qty}`:""}`).join(", ")||"No products"}</div>
         </div>
@@ -962,6 +963,7 @@ function OrderCard({order:o,onUpdate,onAdvance,onEdit,onPrint,onDeleteRequest}){
             {o.phone&&<span style={{color:"#555",fontSize:12}}>📞 {o.phone}</span>}
             {isLate&&<span style={{color:"#cc0000",fontSize:11,fontWeight:"bold"}}>⚠ LATE</span>}
             {printSoon&&<span style={{color:"#ffaa00",fontSize:11,fontWeight:"bold"}}>🖨 PRINT SOON</span>}
+            {o.source==="website"&&<span style={{background:"#0a1a2a",color:"#4499ff",border:"1px solid #1a3a5a",borderRadius:20,padding:"2px 8px",fontSize:11,fontWeight:"bold"}}>🌐 Web</span>}
           </div>
           <div style={{fontSize:12,color:"#555",marginTop:3}}>{o.products.filter(p=>p.name).map(p=>`${p.name}${p.qty?` ×${p.qty}`:""}`).join(", ")||"No products"}</div>
         </div>
