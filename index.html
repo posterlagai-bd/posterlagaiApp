@@ -109,12 +109,15 @@ const productTotal=(p)=>p.manualTotal!==""?parseFloat(p.manualTotal)||0:(parseFl
 const orderRevenue=(products=[])=>products.reduce((s,p)=>s+productTotal(p),0);
 const orderCost=(products=[])=>products.reduce((s,p)=>s+(parseFloat(p.cost)||0)*(parseFloat(p.qty)||1),0);
 const hasCost=(products=[])=>products.some(p=>parseFloat(p.cost)>0);
+const orderSaveFromDC=(deliveryCharge=0,actualDC="")=>{
+  const billed=parseFloat(deliveryCharge)||0;
+  const actual=actualDC!==""?parseFloat(actualDC)||0:0;
+  return billed-actual;
+};
 const orderProfit=(products=[],deliveryCharge=0,deliveryPaid=false,actualDC="")=>{
   const rev=orderRevenue(products);
   const cost=hasCost(products)?orderCost(products):0;
-  const dc=parseFloat(deliveryCharge)||0;
-  const realDC=parseFloat(actualDC)||0;
-  return rev+(dc-realDC)-cost;
+  return rev+orderSaveFromDC(deliveryCharge,actualDC)-cost;
 };
 let nextSeq=1;
 const makeOrder=()=>({
@@ -414,7 +417,7 @@ function StaffPnlView({data,from,to,onFromChange,onToChange,orders,onToggleDeliv
         <SCard label="Total Cost"  value={tk(data.totalCost)} color="#ff6666"/>
         <SCard label="Profit"      value={tk(data.profit)}    color={data.profit>=0?"#44cc44":"#cc4444"}/>
         <SCard label="Courier Cost" value={tk(data.delivery)}  color="#aaa"/>
-        <SCard label="Grand Total" value={tk(data.total)}     color="#cc0000"/>
+        <SCard label="Save from DC" value={tk(data.saveFromDC)} color={data.saveFromDC>=0?"#44cc44":"#cc4444"}/>
       </div>
       {orders.filter(o=>o.status==="Delivered").length===0
         ?<div style={{textAlign:"center",color:"#554444",marginTop:40}}>No delivered orders yet.</div>
@@ -805,11 +808,11 @@ function App(){
       return d>=pnlFrom&&d<=pnlTo;
     });
     const revenue=mo.reduce((s,o)=>s+orderRevenue(o.products),0);
-    const delivery=mo.reduce((s,o)=>s+(parseFloat(o.actualDC)||parseFloat(o.deliveryCharge)||0),0);
+    const delivery=mo.reduce((s,o)=>s+(o.actualDC!==""?parseFloat(o.actualDC)||0:parseFloat(o.deliveryCharge)||0),0);
     const totalCost=mo.reduce((s,o)=>s+orderCost(o.products),0);
     const profit=mo.reduce((s,o)=>s+orderProfit(o.products,o.deliveryCharge,o.deliveryPaid,o.actualDC),0);
-    const grandTotal=mo.reduce((s,o)=>{const rev=orderRevenue(o.products);const dc=parseFloat(o.deliveryCharge)||0;return s+(o.deliveryPaid?rev:rev+dc);},0);
-    return{orders:mo,revenue,delivery,total:grandTotal,totalCost,profit};
+    const saveFromDC=mo.reduce((s,o)=>s+orderSaveFromDC(o.deliveryCharge,o.actualDC),0);
+    return{orders:mo,revenue,delivery,totalCost,profit,saveFromDC};
   },[orders,pnlFrom,pnlTo]);
 
   const visible=orders.filter(o=>{
@@ -1564,7 +1567,7 @@ function PnlView({data,allOrders,from,to,onFromChange,onToChange,onPrintOrder}){
         <SCard label="Total Cost"  value={tk(data.totalCost)} color="#ff6666"/>
         <SCard label="Profit"      value={tk(data.profit)}    color={data.profit>=0?"#44cc44":"#cc4444"}/>
         <SCard label="Courier Cost" value={tk(data.delivery)}  color="#aaa"/>
-        <SCard label="Grand Total" value={tk(data.total)}     color="#cc0000"/>
+        <SCard label="Save from DC" value={tk(data.saveFromDC)} color={data.saveFromDC>=0?"#44cc44":"#cc4444"}/>
       </div>
       {allOrders.length===0
         ?<div style={{textAlign:"center",color:"#554444",marginTop:40}}>No delivered orders for this period.</div>
@@ -1600,9 +1603,9 @@ function MonthlyFolders({orders,onPrintOrder}){
   const monthStats=(ords)=>{
     const revenue=ords.reduce((s,o)=>s+orderRevenue(o.products),0);
     const profit=ords.reduce((s,o)=>s+orderProfit(o.products,o.deliveryCharge,o.deliveryPaid,o.actualDC),0);
-    const courierCost=ords.reduce((s,o)=>s+(parseFloat(o.actualDC)||parseFloat(o.deliveryCharge)||0),0);
-    const grandTotal=ords.reduce((s,o)=>{const rev=orderRevenue(o.products);const dc=parseFloat(o.deliveryCharge)||0;return s+(o.deliveryPaid?rev:rev+dc);},0);
-    return{revenue,profit,courierCost,grandTotal};
+    const courierCost=ords.reduce((s,o)=>s+(o.actualDC!==""?parseFloat(o.actualDC)||0:parseFloat(o.deliveryCharge)||0),0);
+    const saveFromDC=ords.reduce((s,o)=>s+orderSaveFromDC(o.deliveryCharge,o.actualDC),0);
+    return{revenue,profit,courierCost,saveFromDC};
   };
 
   const downloadMonthPDF=(key,ords)=>{
@@ -1644,7 +1647,7 @@ function MonthlyFolders({orders,onPrintOrder}){
       <div class="scard"><div class="scard-label">Revenue</div><div class="scard-val" style="color:#2255cc">BDT ${stats.revenue.toFixed(2)}</div></div>
       <div class="scard"><div class="scard-label">Courier Cost</div><div class="scard-val" style="color:#888">BDT ${stats.courierCost.toFixed(2)}</div></div>
       <div class="scard"><div class="scard-label">Profit</div><div class="scard-val" style="color:${stats.profit>=0?"#22aa44":"#cc2222"}">BDT ${stats.profit.toFixed(2)}</div></div>
-      <div class="scard"><div class="scard-label">Grand Total</div><div class="scard-val" style="color:#cc0000">BDT ${stats.grandTotal.toFixed(2)}</div></div>
+      <div class="scard"><div class="scard-label">Save from DC</div><div class="scard-val" style="color:${stats.saveFromDC>=0?"#22aa44":"#cc2222"}">BDT ${stats.saveFromDC.toFixed(2)}</div></div>
     </div>
     <table>
       <thead><tr><th>#</th><th>Client</th><th>Items</th><th>Total</th></tr></thead>
@@ -1694,8 +1697,8 @@ function MonthlyFolders({orders,onPrintOrder}){
                   <span style={{fontWeight:"bold",color:stats.profit>=0?"#44cc44":"#cc4444",fontSize:13,whiteSpace:"nowrap"}}>{tk(stats.profit)}</span>
                 </div>
                 <div style={{borderTop:"1px solid #1e1e1e",paddingTop:10,display:"flex",justifyContent:"space-between",alignItems:"center",gap:6}}>
-                  <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1,whiteSpace:"nowrap"}}>Total</span>
-                  <span style={{fontWeight:"bold",color:"#cc0000",fontSize:15,whiteSpace:"nowrap"}}>{tk(stats.grandTotal)}</span>
+                  <span style={{fontSize:11,color:"#555",textTransform:"uppercase",letterSpacing:1,whiteSpace:"nowrap"}}>Save from DC</span>
+                  <span style={{fontWeight:"bold",color:stats.saveFromDC>=0?"#44cc44":"#cc4444",fontSize:15,whiteSpace:"nowrap"}}>{tk(stats.saveFromDC)}</span>
                 </div>
               </div>
               {/* Dark bottom bar */}
